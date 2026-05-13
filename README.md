@@ -5,7 +5,7 @@ IvyPro is a high-performance, keyboard-driven accounting and GST billing softwar
 
 ---
 > [!NOTE]
-> ### 🧪 Beta Release (v1.0.0-beta)
+> ### 🧪 Beta Release (v1-beta)
 > IvyPro V1 is currently in **Public Beta**. We are actively refining the engine and expanding our compliance modules.
 > 
 > **We need your feedback!**
