@@ -4,6 +4,17 @@ IvyPro is a high-performance, keyboard-driven accounting and GST billing softwar
 <img width="1372" height="666" alt="splash" src="https://github.com/user-attachments/assets/203d701c-c5eb-4df6-a692-b355a31a0f17" />
 
 ---
+> [!NOTE]
+> ### 🧪 Beta Release (v1.0.0-beta)
+> IvyPro V1 is currently in **Public Beta**. We are actively refining the engine and expanding our compliance modules.
+> 
+> **We need your feedback!**
+> *   **Found a Bug?** Please report it via the repository's "Issues" tab.
+> *   **Have a Suggestion?** We are looking for feature requests to make IvyPro the best tool for Indian accountants. 
+> 
+> Your input directly shapes the future of this platform.
+
+---
 
 ## 💻 User Installation (Windows 10/11)
 
