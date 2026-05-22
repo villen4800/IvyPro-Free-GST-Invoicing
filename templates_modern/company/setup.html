@@ -3,6 +3,11 @@
 {% block page_title %}{{ 'Edit: '+edit_company.name if edit else 'Company Setup' }}{% endblock %}
 
 {% block content %}
+{% if request.args.get('studio_only') == '1' %}
+<script>
+  document.body.classList.add('studio-only-view');
+</script>
+{% endif %}
 <form method="POST" id="coForm" style="max-width:1100px; margin: 0 auto;" enctype="multipart/form-data">
 {% set c = edit_company if edit else none %}
 
@@ -290,15 +295,35 @@
     </div>
   </div>
 
+  <!-- Mobile-only Invoice Studio Banner -->
+  <div class="m-card studio-mobile-banner" style="grid-column: 1 / -1; border-color: var(--m-accent); display: none; padding: 25px; text-align: center; background: var(--m-panel); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+    <div style="font-size: 32px; margin-bottom: 15px;">🎨</div>
+    <h3 style="margin-bottom: 10px; color: var(--m-accent); font-weight: 800;">Visual Invoice Studio</h3>
+    <p style="font-size: 12px; color: var(--m-gray); margin-bottom: 20px; line-height: 1.6;">
+      Designing layouts, configuring colors, margins, and custom A4 page dimensions is best experienced in a dedicated full viewport.
+    </p>
+    <button type="button" onclick="openStudioNewTab()" class="m-btn m-btn-accent" style="width: 100%; justify-content: center; padding: 12px; font-weight: 800;">
+      <i class="fas fa-external-link-alt"></i> Open Design Studio in New Tab
+    </button>
+  </div>
+
   <!-- Visual Drag & Drop Invoice Studio -->
-  <div class="m-card" style="grid-column: 1 / -1; border-color: var(--m-accent); box-shadow: 0 10px 40px rgba(233,69,96,0.15);">
+  <div class="m-card studio-card" style="grid-column: 1 / -1; border-color: var(--m-accent); box-shadow: 0 10px 40px rgba(233,69,96,0.15);">
     <div class="m-card-header" style="background: linear-gradient(135deg, var(--m-accent-muted), var(--m-bg)); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--m-border);">
       <span class="m-card-title" style="color: var(--m-accent); font-size: 16px; display: flex; align-items: center; gap: 10px;">
         <i class="fas fa-magic"></i> 🎨 Visual Drag & Drop Invoice Studio (Live A4 Preview)
       </span>
-      <span style="font-size: 12px; color: var(--m-gray); background: var(--m-bg); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--m-border);">
-        Interactive WYSIWYG Builder
-      </span>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button type="button" onclick="exitStudioOnly()" class="m-btn m-btn-outline studio-save-btn" style="padding: 6px 15px; font-size: 11px; display: none; align-items: center; gap: 5px; border-color: var(--m-accent); color: var(--m-accent);">
+          <i class="fas fa-arrow-left"></i> Back to Setup
+        </button>
+        <span style="font-size: 12px; color: var(--m-gray); background: var(--m-bg); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--m-border);">
+          Interactive WYSIWYG Builder
+        </span>
+        <button type="button" onclick="preSubmitForm()" class="m-btn m-btn-accent studio-save-btn" style="padding: 6px 15px; font-size: 11px; display: none; align-items: center; gap: 5px;">
+          <i class="fas fa-save"></i> Save Layout
+        </button>
+      </div>
     </div>
 
     <!-- Hidden Inputs for Form Submission -->
@@ -308,7 +333,7 @@
     <input type="hidden" name="qr_placement" id="studio_qr_placement" value="{{ c.qr_placement if c and c.qr_placement else 'BOTTOM_CENTER' }}">
     <input type="hidden" name="block_order" id="studio_block_order" value="{{ c.block_order if c and c.block_order else 'header,hr,addresses,items,totals,gst,footer' }}">
 
-    <div class="m-card-body" style="padding: 0; display: grid; grid-template-columns: 450px 1fr; min-height: 850px; background: var(--m-studio-container-bg);">
+    <div class="m-card-body studio-body" style="padding: 0; display: grid; grid-template-columns: 450px 1fr; min-height: 850px; background: var(--m-studio-container-bg);">
       
       <!-- LEFT COLUMN: Studio Controls & Toolbox -->
       <div style="border-right: 1px solid var(--m-border); display: flex; flex-direction: column; background: var(--m-studio-panel-bg);">
@@ -566,7 +591,64 @@
   margin-top: 30px;
   margin-bottom: 50px;
 }
+
+/* Studio Only View Mode Styles */
+body.studio-only-view {
+  background: var(--m-studio-container-bg) !important;
+}
+body.studio-only-view .m-sidebar,
+body.studio-only-view .m-topbar,
+body.studio-only-view .m-page-header,
+body.studio-only-view .m-grid-1-1 > :not(.studio-card),
+body.studio-only-view .m-grid-1-1 > :not(.studio-card):not(.studio-mobile-banner),
+body.studio-only-view .setup-buttons-row {
+  display: none !important;
+}
+body.studio-only-view .m-content {
+  margin-left: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+body.studio-only-view #coForm {
+  max-width: 100% !important;
+}
+body.studio-only-view .studio-card {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  width: 100% !important;
+  border: none !important;
+}
+
+/* Studio layout & mobile adjustments */
+.studio-mobile-banner {
+  display: none;
+}
+.studio-body {
+  display: grid;
+  grid-template-columns: 450px 1fr;
+}
+
+@media (max-width: 992px) {
+  .studio-body {
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+  }
+  .studio-body > div:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--m-border) !important;
+  }
+}
+
 @media (max-width: 768px) {
+  /* On normal mobile view, hide the studio card and show the mobile banner */
+  body:not(.studio-only-view) .studio-card {
+    display: none !important;
+  }
+  body:not(.studio-only-view) .studio-mobile-banner {
+    display: block !important;
+  }
+
   .gst-toggle-container {
     flex-direction: column;
     align-items: stretch;
@@ -1553,6 +1635,10 @@ function initDragAndDrop() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.innerWidth <= 768) {
+    studioZoom = 0.45;
+    document.getElementById('canvasSheetWrapper').style.transform = `scale(${studioZoom})`;
+  }
   const layoutEl = document.getElementById('print_layout');
   if (layoutEl) {
     handleLayoutChange(layoutEl.value);
@@ -1560,6 +1646,18 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshCanvas();
   }
 });
+
+function openStudioNewTab() {
+  window.open(window.location.pathname + '?studio_only=1', '_blank');
+}
+
+function exitStudioOnly() {
+  if (window.opener) {
+    window.close();
+  } else {
+    window.location.search = '';
+  }
+}
 </script>
 
 <div class="setup-buttons-row">
