@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="m-container m-max-w-900">
+    <div class="m-header">
+        <div>
+            <h1 class="m-title">GST Filing Assistant</h1>
+            <p class="m-subtitle">Step-by-step guide to filing your returns on the GST Portal</p>
+        </div>
+        <div class="m-actions">
+            <select id="guide-type" class="m-input" onchange="switchGuide(this.value)">
+                {% if company and company.gst_registration_type == 'Composition' %}
+                    <option value="cmp08">CMP-08 (Composition)</option>
+                    <option value="gstr4">GSTR-4 (Composition Annual)</option>
+                {% else %}
+                    <option value="gstr1">GSTR-1 (Regular)</option>
+                    <option value="gstr3b">GSTR-3B (Regular)</option>
+                    <option value="nil1">GSTR-1 (NIL)</option>
+                    <option value="nil3b">GSTR-3B (NIL)</option>
+                {% endif %}
+                <option value="eway">e-Way Bill Guide</option>
+            </select>
+        </div>
+    </div>
+
+    {% if company and company.gst_registration_type == 'Composition' %}
+    <!-- CMP-08 Guide -->
+    <div id="guide-cmp08" class="guide-section">
+        {% set steps_cmp08 = [
+            ('Login to GST Portal', '1. Go to gst.gov.in and login.<br>2. Navigate to <b>Services</b> → <b>Returns</b> → <b>Returns Dashboard</b>.'),
+            ('Select Return Period', '1. Choose the Financial Year and the quarterly Tax Period.<br>2. Locate the <b>CMP-08</b> tile (Statement for self-assessed tax) and click <b>PREPARE ONLINE</b>.'),
+            ('Table 1 & 2 — Outward Supplies', '1. Declare the value of outward supplies (sales) made during the quarter.<br>2. Tax will be calculated at your flat composition rate (e.g., 1% or 5%).<br><b>Note:</b> You cannot collect tax from customers or issue a tax invoice.'),
+            ('Table 3 — Inward Supplies (Reverse Charge)', '1. Declare purchases liable to Reverse Charge (if any).<br>2. Fill in the appropriate CGST, SGST, or IGST tax amounts.'),
+            ('Payment and Filing', '1. The portal will compute your net tax payable.<br>2. Click <b>File GST CMP-08</b>. Verify using DSC or EVC code.')
+        ] %}
+        {% for title, detail in steps_cmp08 %}
+        <div class="guide-card m-mb-3">
+            <div class="guide-header" onclick="this.parentElement.classList.toggle('active')">
+                <div class="m-flex-center gap-3">
+                    <div class="step-num">{{ loop.index }}</div>
+                    <span class="m-font-bold">{{ title }}</span>
+                </div>
+                <i class="ri-arrow-down-s-line"></i>
+            </div>
+            <div class="guide-body m-text-muted m-p-3">
+                {{ detail|safe }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- GSTR-4 Guide -->
+    <div id="guide-gstr4" class="guide-section hidden">
+        {% set steps_gstr4 = [
+            ('Navigate to GSTR-4', '1. Login to GST Portal.<br>2. Go to <b>Services</b> → <b>Returns</b> → <b>Annual Return</b>.<br>3. Select the Financial Year and click <b>Search</b>.<br>4. Click <b>PREPARE OFFLINE</b> to upload JSON, or <b>PREPARE ONLINE</b>.'),
+            ('Upload GSTR-4 JSON', '1. Use our GSTR-4 JSON export to generate your return structure.<br>2. Upload the exported file to the portal to auto-fill Table 4A (B2B purchases) and outward supply tables.'),
+            ('Table 6 — Outward Supplies (Turnover)', '1. Verify your taxable turnover and the tax payable at composition rate.<br>2. Review aggregated tax values.'),
+            ('Table 8 — Tax Paid / Payable', '1. Verify the tax already paid via CMP-08 quarterly statements.<br>2. Pay any differential tax liability if applicable.'),
+            ('File GSTR-4 Annual Return', '1. Click <b>Preview GSTR-4</b> to verify details.<br>2. Select the Authorized Signatory and file using EVC or DSC.')
+        ] %}
+        {% for title, detail in steps_gstr4 %}
+        <div class="guide-card m-mb-3">
+            <div class="guide-header" onclick="this.parentElement.classList.toggle('active')">
+                <div class="m-flex-center gap-3">
+                    <div class="step-num">{{ loop.index }}</div>
+                    <span class="m-font-bold">{{ title }}</span>
+                </div>
+                <i class="ri-arrow-down-s-line"></i>
+            </div>
+            <div class="guide-body m-text-muted m-p-3">
+                {{ detail|safe }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- GSTR-1 Guide -->
+    <div id="guide-gstr1" class="guide-section">
+        {% set steps = [
+            ('Login to GST Portal', '1. Open gst.gov.in in your browser.<br>2. Click "Login" at top-right → Enter credentials.<br>3. After login, click "Returns" in the top menu → "Returns Dashboard".'),
+            ('Select Return Period', '1. Select "Financial Year" and "Return Filing Period".<br>2. Find "GSTR-1" tile → Click "PREPARE ONLINE".'),
+            ('Table 4A — B2B Invoices', '1. Click "4A, 4B, 4C, 6B, 6C — B2B Invoices".<br>2. Click "+ ADD INVOICE".<br>3. Enter GSTIN, Invoice Number, Date, Value, and Tax Details for each bill.<br><b>Tip:</b> Use our GSTR-1 JSON export to skip manual entry!'),
+            ('Table 7 — B2C Small', '1. Click "7 — B2C (Others)".<br>2. Data is entered in AGGREGATE. Group by: State and Tax Rate.<br>3. Enter Taxable Value and Tax Amounts.'),
+            ('Table 12 — HSN Summary', '1. Click "12 — HSN-wise Summary".<br>2. Mandatory if turnover > ₹1.5 Cr.<br>3. Enter HSN, UQC, Quantity, and Taxable Values.'),
+            ('Preview & Submit', '1. Click "GENERATE SUMMARY" at the bottom.<br>2. Review carefully. Once you click "SUBMIT", data is FROZEN.<br>3. Click "FILE GSTR-1" with EVC/DSC.')
+        ] %}
+        {% for title, detail in steps %}
+        <div class="guide-card m-mb-3">
+            <div class="guide-header" onclick="this.parentElement.classList.toggle('active')">
+                <div class="m-flex-center gap-3">
+                    <div class="step-num">{{ loop.index }}</div>
+                    <span class="m-font-bold">{{ title }}</span>
+                </div>
+                <i class="ri-arrow-down-s-line"></i>
+            </div>
+            <div class="guide-body m-text-muted m-p-3">
+                {{ detail|safe }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- GSTR-3B Guide -->
+    <div id="guide-gstr3b" class="guide-section hidden">
+        {% set steps = [
+            ('Navigate to GSTR-3B', '1. Login → Returns Dashboard.<br>2. Find "GSTR-3B" tile → Click "PREPARE ONLINE".'),
+            ('Table 3.1 — Tax Liability', '1. Verify outward taxable supplies.<br>2. These should match your GSTR-1 totals.'),
+            ('Table 4 — Input Tax Credit (ITC)', '1. Click "4 — Eligible ITC".<br>2. Enter ITC from your purchases and expenses in "All other ITC".<br><b>Crucial:</b> Verify against GSTR-2B before claiming!'),
+            ('Table 6.1 — Payment of Tax', '1. System will utilize available ITC first.<br>2. If balance exists, "CREATE CHALLAN" and pay via Net Banking.'),
+            ('File GSTR-3B', '1. Click "SUBMIT" → "MAKE PAYMENT" → "FILE GSTR-3B" with EVC/DSC.')
+        ] %}
+        {% for title, detail in steps %}
+        <div class="guide-card m-mb-3">
+            <div class="guide-header" onclick="this.parentElement.classList.toggle('active')">
+                <div class="m-flex-center gap-3">
+                    <div class="step-num">{{ loop.index }}</div>
+                    <span class="m-font-bold">{{ title }}</span>
+                </div>
+                <i class="ri-arrow-down-s-line"></i>
+            </div>
+            <div class="guide-body m-text-muted m-p-3">
+                {{ detail|safe }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- NIL Guides (Simpler) -->
+    <div id="guide-nil1" class="guide-section hidden">
+        <div class="m-card m-p-4 m-text-center">
+            <h3>NIL GSTR-1 Filing</h3>
+            <p class="m-text-muted m-mb-4">Use the "FILE NIL GSTR-1" button on the portal if you have zero sales.</p>
+            <ol class="m-text-left m-inline-block">
+                <li>Login → Dashboard → GSTR-1.</li>
+                <li>Check "File NIL GSTR-1" checkbox.</li>
+                <li>Proceed to File with EVC.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div id="guide-nil3b" class="guide-section hidden">
+        <div class="m-card m-p-4 m-text-center">
+            <h3>NIL GSTR-3B Filing</h3>
+            <p class="m-text-muted m-mb-4">One-click filing if no tax liability and no ITC claim.</p>
+            <ol class="m-text-left m-inline-block">
+                <li>Login → Dashboard → GSTR-3B.</li>
+                <li>Select "Yes" for "Do you want to file NIL return?".</li>
+                <li>File with EVC.</li>
+            </ol>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- e-Way Bill Guide -->
+    <div id="guide-eway" class="guide-section hidden">
+        {% set steps_eway = [
+            ('Navigate to e-Way Bill Portal', '1. Go to <b>ewaybillgst.gov.in</b> and log in.<br>2. On the left sidebar, click <b>e-Way Bill</b> → <b>Generate New</b>.'),
+            ('Enter Transaction Details', '1. Select <b>Transaction Type</b> (Outward / Inward).<br>2. Select <b>Sub-type</b> (e.g. Supply, Job Work, Exhibition, etc.).'),
+            ('Enter Document Details', '1. Enter Document Type. <b>Note:</b> Select <b>Bill of Supply (BIL)</b> if you are a Composition Taxpayer, or <b>Invoice (INV)</b> if you are a Regular Taxpayer.<br>2. Enter Document Number and Date.'),
+            ('Add Parties and Goods Details', '1. Specify <b>Bill From / Dispatch From</b> and <b>Bill To / Ship To</b> details.<br>2. Enter Item details, HSN codes, and taxable values.<br><b>Tip:</b> Export the IvyPro Bulk e-Way Bill JSON to automate this step!'),
+            ('Transport details & Submission', '1. Provide Transport Mode (Road/Rail/Air/Ship), Distance, Transporter ID or Vehicle Number.<br>2. Click <b>Submit</b> to generate the 12-digit e-way bill. Update this number on the IvyPro voucher page.'),
+            ('Composition Scheme Rule', '<b>Composition Scheme e-Way Bill Rule:</b><br>Yes, e-way bills are mandatory for taxpayers registered under the Composition Scheme. If you are moving goods—whether for outward supply, inward supply, or reasons other than a supply (such as job work or exhibition)—you must generate an e-way bill if the consignment value exceeds ₹50,000.')
+        ] %}
+        {% for title, detail in steps_eway %}
+        <div class="guide-card m-mb-3">
+            <div class="guide-header" onclick="this.parentElement.classList.toggle('active')">
+                <div class="m-flex-center gap-3">
+                    <div class="step-num">{{ loop.index }}</div>
+                    <span class="m-font-bold">{{ title }}</span>
+                </div>
+                <i class="ri-arrow-down-s-line"></i>
+            </div>
+            <div class="guide-body m-text-muted m-p-3">
+                {{ detail|safe }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function switchGuide(type) {
+    document.querySelectorAll('.guide-section').forEach(s => s.classList.add('hidden'));
+    document.getElementById('guide-' + type).classList.remove('hidden');
+}
+</script>
+
+<style>
+.guide-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.guide-header {
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.02);
+}
+.guide-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.guide-body {
+    display: none;
+    line-height: 1.8;
+}
+.guide-card.active .guide-body {
+    display: block;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.guide-card.active .ri-arrow-down-s-line {
+    transform: rotate(180deg);
+}
+.step-num {
+    width: 24px;
+    height: 24px;
+    background: var(--m-accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+.hidden { display: none; }
+</style>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Ledger Groups{% endblock %}
+{% block page_title %}Hierarchy of Accounts{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 350px 1fr; gap: 30px; align-items: start;">
+  
+  <!-- LEFT: ADD GROUP -->
+  <div class="m-card">
+    <div class="m-card-header">
+      <span class="m-card-title">Create Account Group</span>
+    </div>
+    <div class="m-card-body" style="padding: 20px;">
+      <form method="POST" action="{{ url_for('ledger.create_group') }}">
+        <div class="m-form-group">
+          <label class="m-label">Group Name *</label>
+          <input type="text" name="name" class="m-input" placeholder="e.g. Fixed Assets" required autofocus>
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">Nature / Category</label>
+          <select name="nature" class="m-input">
+            <option value="Assets">Assets (Debit)</option>
+            <option value="Liabilities">Liabilities (Credit)</option>
+            <option value="Income">Income (Credit)</option>
+            <option value="Expense">Expense (Debit)</option>
+          </select>
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">Parent Group</label>
+          <select name="parent_id" class="m-input">
+            <option value="">— Primary (Top Level) —</option>
+            {% for g in groups %}
+            <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="m-btn m-btn-accent" style="width: 100%; justify-content: center;">+ Create Group</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- RIGHT: GROUP LIST -->
+  <div class="m-card">
+    <div class="m-card-header">
+      <span class="m-card-title">All Ledger Groups</span>
+      <div style="font-size: 10px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 1px;">COA Structure</div>
+    </div>
+    <div class="m-table-wrap" style="border: none; border-radius: 0;">
+      <table class="m-table">
+        <thead>
+          <tr>
+            <th>Group Name</th>
+            <th style="width: 120px;">Nature</th>
+            <th>Parent</th>
+            <th style="width: 100px; text-align: center;">Origin</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in groups %}
+          <tr>
+            <td>
+              <div style="font-weight: 700; color: var(--m-text);">{{ g.name }}</div>
+              <div style="font-size: 9px; color: var(--m-gray); margin-top: 2px;">LEDGER CATEGORY</div>
+            </td>
+            <td>
+              {% if g.nature == 'Assets' %}
+                <span style="font-size: 10px; font-weight: 900; color: var(--m-green); text-transform: uppercase;">Assets</span>
+              {% elif g.nature == 'Liabilities' %}
+                <span style="font-size: 10px; font-weight: 900; color: var(--m-red); text-transform: uppercase;">Liabilities</span>
+              {% elif g.nature == 'Income' %}
+                <span style="font-size: 10px; font-weight: 900; color: var(--m-accent); text-transform: uppercase;">Income</span>
+              {% else %}
+                <span style="font-size: 10px; font-weight: 900; color: var(--m-gold); text-transform: uppercase;">Expense</span>
+              {% endif %}
+            </td>
+            <td style="color: var(--m-gray);">{{ g.parent.name if g.parent else 'Primary' }}</td>
+            <td style="text-align: center;">
+              {% if g.is_system %}
+                <span style="font-size: 9px; font-weight: 800; color: var(--m-gray); border: 1px solid var(--m-border); padding: 2px 6px; border-radius: 4px;">SYSTEM</span>
+              {% else %}
+                <span style="font-size: 9px; font-weight: 800; color: var(--m-accent); border: 1px solid var(--m-accent-muted); padding: 2px 6px; border-radius: 4px;">USER</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

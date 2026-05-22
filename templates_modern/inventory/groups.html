@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Stock Groups{% endblock %}
+{% block page_title %}Inventory Hierarchy{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 350px 1fr; gap: 30px; align-items: start;">
+  
+  <!-- LEFT: ADD GROUP -->
+  <div class="m-card">
+    <div class="m-card-header">
+      <span class="m-card-title">Add Stock Group</span>
+    </div>
+    <div class="m-card-body" style="padding: 20px;">
+      <form method="POST" action="{{ url_for('inventory.create_group') }}">
+        <div class="m-form-group">
+          <label class="m-label">Group Name *</label>
+          <input type="text" name="name" class="m-input" placeholder="e.g. Raw Materials" required autofocus>
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">Parent Group</label>
+          <select name="parent_id" class="m-input">
+            <option value="">— Primary (Top Level) —</option>
+            {% for g in groups %}
+            <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="m-btn m-btn-accent" style="width: 100%; justify-content: center;">+ Create Group</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- RIGHT: GROUP LIST -->
+  <div class="m-card">
+    <div class="m-card-header">
+      <span class="m-card-title">Stock Groups Master</span>
+      <div style="font-size: 10px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 1px;">Item Classification</div>
+    </div>
+    <div class="m-table-wrap" style="border: none; border-radius: 0;">
+      <table class="m-table">
+        <thead>
+          <tr>
+            <th style="width: 60px; text-align: center;">Icon</th>
+            <th>Group Name</th>
+            <th>Parent Hierarchy</th>
+            <th style="width: 120px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in groups %}
+          <tr>
+            <td style="text-align: center;">
+              <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--m-gray); font-size: 14px;">
+                📦
+              </div>
+            </td>
+            <td>
+              <div style="font-weight: 700; color: var(--m-text);">{{ g.name }}</div>
+              <div style="font-size: 9px; color: var(--m-gray); margin-top: 2px;">ID: {{ g.id }}</div>
+            </td>
+            <td style="color: #ddd;">
+              {{ g.parent.name if g.parent else 'Primary' }}
+            </td>
+            <td style="text-align: center;">
+              <span style="font-size: 10px; font-weight: 900; background: rgba(0,255,136,0.1); color: var(--m-green); padding: 4px 10px; border-radius: 4px; letter-spacing: 0.5px;">ACTIVE</span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="text-align: center; padding: 60px; color: var(--m-gray);">No stock groups defined yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

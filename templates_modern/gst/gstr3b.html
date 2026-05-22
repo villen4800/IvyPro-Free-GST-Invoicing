@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}GSTR-3B Report{% endblock %}
+{% block page_title %}GSTR-3B Summary{% endblock %}
+
+{% block extra_css %}
+<style>
+.m-tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.m-tax-card { background: var(--m-surface); border: 1px solid var(--m-border); padding: 24px; border-radius: 8px; }
+.m-tax-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.m-tax-table th { text-align: left; font-size: 10px; color: var(--m-gray); text-transform: uppercase; padding: 10px; border-bottom: 2px solid var(--m-border); }
+.m-tax-table td { padding: 15px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+.m-tax-val { font-family: var(--m-font-mono); font-weight: 600; text-align: right; }
+@media (max-width: 900px) { .m-tax-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="m-card" style="margin-bottom: 20px;">
+  <div class="m-card-header">
+    <div style="display: flex; gap: 20px; align-items: center; flex: 1; flex-wrap: wrap;">
+      <span class="m-card-title">{{ company.name }} - {{ month }}</span>
+      <form method="GET" style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input type="month" name="month" value="{{ month }}" class="m-input" style="padding: 5px 12px; width: 160px;">
+        <button type="submit" class="m-btn m-btn-accent">Filter</button>
+      </form>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <a href="{{ url_for('gst.gstr3b_gstn_json', month=month) }}" class="m-btn m-btn-accent">GSTN JSON</a>
+      <a href="{{ url_for('gst.gstr3b_export_csv', month=month) }}" class="m-btn m-btn-outline">CSV</a>
+      <button onclick="window.print()" class="m-btn m-btn-outline">Print Summary</button>
+    </div>
+  </div>
+</div>
+
+<div class="m-tax-grid">
+  <div class="m-tax-card">
+    <div class="m-group-hdr">3.1 Outward Supplies</div>
+    <table class="m-tax-table">
+      <thead>
+        <tr><th>Nature of Supplies</th><th style="text-align: right;">Taxable</th><th style="text-align: right;">Total Tax</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sales and debit notes</td>
+          <td class="m-tax-val">&#8377;{{ "{:,.2f}".format(sales.taxable + dn.taxable) }}</td>
+          <td class="m-tax-val" style="color: var(--m-accent);">&#8377;{{ "{:,.2f}".format(sales.igst + sales.cgst + sales.sgst + dn.igst + dn.cgst + dn.sgst) }}</td>
+        </tr>
+        <tr>
+          <td style="color: var(--m-gray);">Less: credit notes / returns</td>
+          <td class="m-tax-val" style="color: var(--m-red);">-&#8377;{{ "{:,.2f}".format(cn.taxable) }}</td>
+          <td class="m-tax-val" style="color: var(--m-red);">-&#8377;{{ "{:,.2f}".format(cn.igst + cn.cgst + cn.sgst) }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight: 900; font-size: 16px;">
+          <td style="padding-top: 20px;">NET LIABILITY</td>
+          <td class="m-tax-val" style="padding-top: 20px;">&#8377;{{ "{:,.2f}".format(net_outward.taxable) }}</td>
+          <td class="m-tax-val" style="padding-top: 20px; color: var(--m-accent);">&#8377;{{ "{:,.2f}".format(net_gst_liability) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="m-tax-card">
+    <div class="m-group-hdr">4.0 ITC Available</div>
+    <table class="m-tax-table">
+      <thead>
+        <tr><th>Description</th><th style="text-align: right;">IGST</th><th style="text-align: right;">CGST/SGST</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Inward supplies (ITC)</td>
+          <td class="m-tax-val">&#8377;{{ "{:,.2f}".format(purchases.igst) }}</td>
+          <td class="m-tax-val">&#8377;{{ "{:,.2f}".format(purchases.cgst + purchases.sgst) }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight: 900; font-size: 16px;">
+          <td style="padding-top: 20px;">TOTAL ELIGIBLE ITC</td>
+          <td colspan="2" class="m-tax-val" style="padding-top: 20px; color: var(--m-green);">&#8377;{{ "{:,.2f}".format(itc_available) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="m-card" style="margin-top: 30px; padding: 40px; text-align: center; border: 2px solid var(--m-accent); background: var(--m-accent-muted);">
+  <div style="font-size: 12px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">Net Tax Payable after ITC</div>
+  <div style="font-size: clamp(32px, 5vw, 48px); font-weight: 900; color: var(--m-text); letter-spacing: 0;">
+    &#8377;{{ "{:,.2f}".format(net_payable|abs) }}
+    <span style="font-size: 14px; font-weight: 700; color: {% if net_payable > 0 %}var(--m-red){% else %}var(--m-green){% endif %}; vertical-align: middle; margin-left: 10px;">
+      {{ 'PAYABLE' if net_payable > 0 else 'CREDIT' }}
+    </span>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Ledger' if edit else 'New Ledger' }}{% endblock %}
+{% block page_title %}{{ 'Edit' if edit else 'Create' }} Ledger{% endblock %}
+
+{% block content %}
+<div style="max-width: 1300px; margin: 0 auto;">
+  <form method="POST" id="ledgerForm">
+    <div class="m-grid-2-1">
+      
+      <!-- LEFT: FORM FIELDS -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="m-card" style="padding: 25px;">
+          <div class="m-group-hdr">Primary Information</div>
+          <div class="m-form-group">
+            <label class="m-label">Ledger Name *</label>
+            <input type="text" name="name" class="m-input" value="{{ ledger.name if ledger else '' }}" required autofocus>
+          </div>
+          <div class="m-grid-1-1">
+            <div class="m-form-group">
+              <label class="m-label">Account Group *</label>
+              <select name="group_id" class="m-input" required>
+                <option value="">— Select —</option>
+                {% for g in groups %}<option value="{{ g.id }}" {% if ledger and ledger.group_id==g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="m-form-group">
+              <label class="m-label">Opening Balance</label>
+              <div style="display: flex; gap: 5px;">
+                <input type="number" name="opening_balance" class="m-input" value="{{ ledger.opening_balance if ledger else 0 }}" step="0.01">
+                <select name="opening_type" class="m-input" style="width: 70px;">
+                  <option value="Dr" {% if ledger and ledger.opening_type=='Dr' %}selected{% endif %}>Dr</option>
+                  <option value="Cr" {% if ledger and ledger.opening_type=='Cr' %}selected{% endif %}>Cr</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-card" style="padding: 25px;">
+          <div class="m-group-hdr">Tax & Registry</div>
+          <div class="m-grid-1-1">
+            <div class="m-form-group">
+              <label class="m-label">Registration Type</label>
+              <select name="registration_type" class="m-input">
+                <option value="Regular" {% if ledger and ledger.registration_type=='Regular' %}selected{% endif %}>Regular</option>
+                <option value="Composition" {% if ledger and ledger.registration_type=='Composition' %}selected{% endif %}>Composition</option>
+                <option value="Unregistered" {% if ledger and ledger.registration_type=='Unregistered' %}selected{% endif %}>Unregistered</option>
+                <option value="Consumer" {% if ledger and ledger.registration_type=='Consumer' %}selected{% endif %}>Consumer</option>
+              </select>
+            </div>
+            <div class="m-form-group">
+              <label class="m-label">PAN Number</label>
+              <input type="text" name="pan" class="m-input" value="{{ ledger.pan if ledger else '' }}" maxlength="10" style="text-transform:uppercase">
+            </div>
+          </div>
+          <div class="m-grid-1-1">
+            <div class="m-form-group gst-only">
+              <label class="m-label">GSTIN (15 Digits)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" name="gstin" id="ledgerGstin" class="m-input" value="{{ ledger.gstin if ledger else '' }}" maxlength="15" style="text-transform:uppercase; flex: 1;">
+                <button type="button" class="m-btn m-btn-outline" style="font-size: 10px; white-space: nowrap;" onclick="lookupGST()">
+                    <i class="ri-search-line"></i> Lookup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-card" style="padding: 25px;">
+          <div class="m-group-hdr">Contact & Credit</div>
+          <div class="m-form-group">
+            <label class="m-label">Principal Place of Business</label>
+            <input type="text" name="address" class="m-input" value="{{ ledger.address if ledger else '' }}" placeholder="Shop/Building/Street...">
+          </div>
+          <div class="m-grid-3">
+            <div class="m-form-group"><label class="m-label">City</label><input type="text" name="city" id="ledgerCity" class="m-input" value="{{ ledger.city if ledger else '' }}"></div>
+            <div class="m-form-group">
+                <label class="m-label">State</label>
+                <select name="state" id="ledgerState" class="m-input">
+                    <option value="">— Select —</option>
+                    {% for code, sname in states %}
+                    <option value="{{ sname }}" {% if ledger and ledger.state == sname %}selected{% endif %}>{{ sname }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="m-form-group"><label class="m-label">Pincode</label><input type="text" name="pincode" id="ledgerPincode" class="m-input" value="{{ ledger.pincode if ledger else '' }}"></div>
+          </div>
+          <div class="m-grid-1-1">
+            <div class="m-form-group"><label class="m-label">Mobile Number</label><input type="text" name="phone" class="m-input" value="{{ ledger.phone if ledger else '' }}" placeholder="e.g. 98290XXXXX"></div>
+            <div class="m-form-group"><label class="m-label">Email Address</label><input type="email" name="email" class="m-input" value="{{ ledger.email if ledger else '' }}" placeholder="customer@example.com"></div>
+          </div>
+          <div class="m-grid-1-1">
+            <div class="m-form-group"><label class="m-label">Credit Limit (₹)</label><input type="number" name="credit_limit" class="m-input" value="{{ ledger.credit_limit if ledger else 0 }}"></div>
+            <div class="m-form-group"><label class="m-label">Credit Days</label><input type="number" name="credit_days" class="m-input" value="{{ ledger.credit_days if ledger else 30 }}"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: ACTIONS -->
+      <div>
+        <div class="m-card" style="position: sticky; top: 20px;">
+          <div class="m-card-header"><span class="m-card-title">Finish Registry</span></div>
+          <div class="m-card-body" style="display: flex; flex-direction: column; gap: 10px;">
+            <button type="submit" class="m-btn m-btn-accent" style="width: 100%; justify-content: center;">
+              {{ 'Update' if edit else 'Create' }} Account
+            </button>
+            <a href="{{ url_for('ledger.index') }}" class="m-btn m-btn-outline" style="width: 100%; justify-content: center;">
+              Cancel
+            </a>
+            <div style="margin-top: 10px; padding: 10px; border: 1px solid var(--m-border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 11px; font-weight: 700; color: var(--m-text);">Account Active</span>
+                <label class="m-switch">
+                    <input type="checkbox" name="is_active" {% if not edit or ledger.is_active %}checked{% endif %}>
+                    <span class="m-slider"></span>
+                </label>
+            </div>
+          </div>
+          <div style="padding: 20px; border-top: 1px solid var(--m-border); font-size: 10px; color: var(--m-gray);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Accept & Save</span> <kbd>Ctrl+S</kbd></div>
+            <div style="display: flex; justify-content: space-between;"><span>Back to List</span> <kbd>Esc</kbd></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+<!-- GST Captcha Modal -->
+<div id="gstCaptchaModal" class="m-modal-overlay" style="align-items: center; padding-top: 0; display:none;">
+    <div class="m-card" style="width: 350px; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; box-shadow: 0 30px 100px rgba(0,0,0,0.5);">
+        <div class="m-card-header" style="padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="m-card-title">🛡️ GST Portal Verify</span>
+            <span onclick="closeGstCaptcha()" style="cursor:pointer; font-size: 20px; color: var(--m-gray);">&times;</span>
+        </div>
+        <div class="m-card-body" style="padding: 25px; text-align: center;">
+            <div style="background: white; padding: 10px; border-radius: 8px; display: inline-block; margin-bottom: 20px;">
+                <img id="gstCaptchaImg" src="" alt="Captcha" style="height: 60px;">
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Enter characters shown above</label>
+                <input type="text" id="gstCaptchaInput" class="m-input" style="text-align: center; font-size: 20px; letter-spacing: 5px; text-transform: uppercase;" autocomplete="off">
+            </div>
+            <div style="display:flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="m-btn m-btn-outline" style="flex:1; justify-content:center;" onclick="refreshGstCaptcha()"><i class="ri-refresh-line"></i></button>
+                <button type="button" class="m-btn m-btn-accent" style="flex:3; justify-content:center;" onclick="submitOfficialLookup()">Verify & Fetch</button>
+            </div>
+            <div style="font-size: 10px; color: var(--m-gray); margin-top: 15px;">This lookup connects directly to the GST Government Portal.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Standard save shortcut handled globally in base.html
+
+async function lookupGST() {
+    const gstin = document.getElementById('ledgerGstin').value.trim();
+    if (gstin.length !== 15) {
+        alert('Please enter a valid 15-digit GSTIN');
+        return;
+    }
+    refreshGstCaptcha();
+}
+
+async function refreshGstCaptcha() {
+    const img = document.getElementById('gstCaptchaImg');
+    const modal = document.getElementById('gstCaptchaModal');
+    
+    img.src = ''; // Clear
+    try {
+        const res = await fetch('/gst/api/official/captcha');
+        const data = await res.json();
+        if (data.success) {
+            img.src = 'data:image/png;base64,' + data.captcha_img;
+            modal.style.display = 'flex';
+            document.getElementById('gstCaptchaInput').value = '';
+            document.getElementById('gstCaptchaInput').focus();
+        } else {
+            alert(data.error || 'Failed to connect to GST Portal.');
+        }
+    } catch (e) {
+        alert('Network error connecting to GST portal.');
+    }
+}
+
+function closeGstCaptcha() {
+    document.getElementById('gstCaptchaModal').style.display = 'none';
+}
+
+async function submitOfficialLookup() {
+    const gstin = document.getElementById('ledgerGstin').value.trim();
+    const captcha = document.getElementById('gstCaptchaInput').value.trim();
+    if (!captcha) return;
+    
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Fetching...';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/gst/api/official/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({gstin, captcha})
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            const d = result.data;
+            document.getElementsByName('name')[0].value = d.trade_name || d.legal_name;
+            document.getElementsByName('address')[0].value = d.address;
+            document.getElementById('ledgerCity').value = d.city;
+            document.getElementById('ledgerState').value = d.state;
+            document.getElementById('ledgerPincode').value = d.pincode;
+            
+            // Auto-fill PAN
+            const pan = gstin.substring(2, 12);
+            document.getElementsByName('pan')[0].value = pan;
+            
+            closeGstCaptcha();
+        } else {
+            alert(result.error || 'Verification failed.');
+            refreshGstCaptcha();
+        }
+    } catch (e) {
+        alert('Lookup error.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

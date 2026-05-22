@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Select Company{% endblock %}
+{% block page_title %}Company Registry{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns: 1fr 350px; gap: 30px; max-width: 1200px; margin: 0 auto;">
+  <div>
+    <div
+      style="margin-bottom: 20px; font-size: 10px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">
+      Available Business Entities
+    </div>
+    {% for company in companies %}
+    {% set is_active = (company.id == session.get('company_id')) %}
+    <div class="m-card"
+      style="cursor:pointer; margin-bottom: 15px; transition: all 0.2s; position: relative; {% if is_active %}border: 1px solid var(--m-accent); background: rgba(0,229,255,0.03);{% endif %}"
+      onclick="window.location='{{ url_for('company.select', id=company.id) }}'">
+      <div style="padding: 24px 30px; display: flex; align-items: center; gap: 24px;">
+        <div
+          style="width: 50px; height: 50px; background: #000; border: 1px solid {% if is_active %}var(--m-accent){% else %}var(--m-border){% endif %}; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: {% if is_active %}var(--m-accent){% else %}var(--m-gray){% endif %}; transition: all 0.3s;">
+          {{ company.name[0] | upper }}
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: 22px; font-weight: 900; color: var(--m-text); letter-spacing: -0.5px;">{{ company.name
+            }}</div>
+          <div
+            style="font-size: 11px; color: var(--m-gray); margin-top: 5px; font-family: var(--m-font-mono); display: flex; align-items: center; gap: 12px;">
+            {% if company.gstin %}<span>GSTIN: <span style="color:var(--m-accent)">{{ company.gstin }}</span></span>
+            &nbsp;•&nbsp;{% endif %}
+            <span style="text-transform: uppercase;">{{ company.city or 'General' }}, {{ company.state or 'India'
+              }}</span>
+          </div>
+        </div>
+        {% if is_active %}
+        <div
+          style="background: var(--m-green); color: #000; font-size: 9px; font-weight: 900; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; letter-spacing: 1px; box-shadow: 0 0 15px rgba(0,255,136,0.2);">
+          Active</div>
+        {% endif %}
+        <div style="display: flex; gap: 10px; align-items: center; margin-left: 10px;">
+          <a href="{{ url_for('company.edit', id=company.id) }}" class="m-btn m-btn-outline"
+            style="padding: 10px 18px; font-size: 10px; border-radius: 4px;" onclick="event.stopPropagation()">Edit
+            Settings</a>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="m-card" style="padding: 60px; text-align: center; border: 1px dashed var(--m-border);">
+      <div style="font-size: 24px; margin-bottom: 10px;">🏢</div>
+      <div style="color: var(--m-gray); font-size: 13px;">No companies registered in this system.</div>
+      <a href="{{ url_for('company.create') }}" class="m-btn m-btn-accent" style="margin-top: 20px;">Initialize First
+        Company</a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div>
+    <div class="m-card">
+      <div class="m-card-header"><span class="m-card-title">Management</span></div>
+      <div class="m-card-body" style="display: flex; flex-direction: column; gap: 10px;">
+        <a href="{{ url_for('company.create') }}" class="m-btn m-btn-accent" style="width: 100%;">Create New Company</a>
+        <a href="{{ url_for('dashboard.index') }}" class="m-btn m-btn-outline" style="width: 100%;">Back to
+          Operations</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

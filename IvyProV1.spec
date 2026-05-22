@@ -1,0 +1,69 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+
+a = Analysis(
+    ['run.py'],
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('templates_modern', 'templates_modern'),
+        ('app/static', 'app/static'),
+        ('data', 'data'),
+        ('splash.png', '.'),          # custom Python splash screen
+    ],
+    hiddenimports=[
+        # pywebview  (hook-webview.py handles most of this automatically)
+        'webview',
+        'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
+
+        # Flask internals
+        'flask',
+        'jinja2',
+        'jinja2.ext',
+        'werkzeug',
+        'werkzeug.exceptions',
+        'werkzeug.routing',
+        'sqlalchemy',
+        'sqlalchemy.dialects.sqlite',
+        # tkinter + PIL for custom splash
+        'tkinter', '_tkinter',
+        'PIL', 'PIL.Image', 'PIL.ImageTk',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='IvyProV1',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=['app_icon.ico'],
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='IvyProV1',
+)

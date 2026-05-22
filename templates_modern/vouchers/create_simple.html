@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}{% if edit %}Edit{% else %}New{% endif %} {{ vtype }}{% endblock %}
+{% block page_title %}{{ vtype }} Entry{% endblock %}
+
+{% block extra_css %}
+<style>
+.m-entry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
+.m-entry-item { display: flex; flex-direction: column; gap: 6px; }
+.m-entry-label { font-size: 10px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+
+.m-grid-table { width: 100%; border-collapse: collapse; font-family: var(--m-font-mono); font-size: 12px; }
+.m-grid-table th { background: var(--m-bg); color: var(--m-gray); padding: 10px; text-align: left; font-size: 10px; border: 1px solid var(--m-border); text-transform: uppercase; letter-spacing: 1px; }
+.m-grid-table td { border: 1px solid var(--m-border); padding: 0; height: 40px; vertical-align: middle; }
+.m-grid-input { 
+  width: 100%; height: 40px; background: transparent; border: none; color: var(--m-text); 
+  padding: 0 12px; font-family: inherit; font-size: 12px; outline: none; 
+  transition: all 0.1s; box-sizing: border-box; display: block;
+}
+.m-grid-input:focus { background: var(--m-accent-muted); box-shadow: inset 0 0 0 1px var(--m-accent); }
+select.m-grid-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 25px;
+}
+
+/* Force dark options */
+option { background-color: var(--m-surface) !important; color: var(--m-text) !important; padding: 10px; }
+option:hover { background-color: var(--m-accent) !important; color: #000 !important; }
+
+.m-footer-bar {
+  position: sticky; bottom: 0; background: var(--m-surface); border-top: 2px solid var(--m-accent);
+  display: flex; align-items: center; padding: 15px 30px; gap: 40px; margin: 20px -40px -40px; z-index: 100;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+}
+.m-grand-total { font-size: 28px; font-weight: 900; color: var(--m-accent); letter-spacing: -1px; }
+
+
+
+.bank-details-box { background: var(--m-bg); border: 1px solid var(--m-border); border-top: none; padding: 15px; margin: 0 10px 10px; border-radius: 0 0 8px 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="m-vtypes-bar">
+  {% for vt in ['Sales', 'Purchase', 'Credit Note', 'Receipt', 'Payment', 'Journal', 'Contra'] %}
+  <a href="{{ url_for('vouchers.create', vtype=vt) }}" 
+     class="m-btn {% if vtype == vt %}m-btn-accent{% else %}m-btn-outline{% endif %}" 
+     style="padding: 6px 15px; font-size: 10px;">
+     {{ vt }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="m-card" style="padding: 30px;">
+  <div class="m-entry-grid">
+    <div class="m-entry-item">
+      <label class="m-entry-label">Voucher Number</label>
+      <div style="font-weight: 900; font-family: var(--m-font-mono); font-size: 20px; color: var(--m-accent);">{{ voucher.voucher_number if edit else next_number }}</div>
+    </div>
+    <div class="m-entry-item">
+      <label class="m-entry-label">Date</label>
+      <input type="date" id="vDate" class="m-input" value="{{ voucher.date.isoformat() if edit else today }}" style="font-family: var(--m-font-mono);">
+    </div>
+    <div class="m-entry-item">
+      <label class="m-entry-label">Reference No.</label>
+      <input type="text" id="refNumber" class="m-input" value="{{ voucher.ref_number if edit else '' }}" placeholder="Optional Reference">
+    </div>
+    <div class="m-entry-item">
+      <label class="m-entry-label">Main Payment Mode</label>
+      <select id="paymentMode" class="m-input">
+        <option value="Cash" {% if edit and voucher.payment_mode=='Cash' %}selected{% endif %}>Cash</option>
+        <option value="NEFT/Bank" {% if edit and voucher.payment_mode=='NEFT/Bank' %}selected{% endif %}>NEFT/Bank</option>
+        <option value="UPI" {% if edit and voucher.payment_mode=='UPI' %}selected{% endif %}>UPI / QR</option>
+        <option value="Cheque" {% if edit and voucher.payment_mode=='Cheque' %}selected{% endif %}>Cheque</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="m-card" style="margin-top: -10px;">
+  <div class="m-card-header">
+    <span class="m-card-title">📖 Accounting Ledger Entries</span>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <button type="button" class="m-btn m-btn-outline" style="padding: 4px 12px; font-size: 10px; font-weight: 800; border-color: var(--m-accent); color: var(--m-accent);" onclick="addEntry()">
+        <i class="ri-add-line"></i> ADD ROW (ENTER)
+      </button>
+      <span style="font-size: 10px; color: var(--m-gray); font-weight: 600;">DR/CR: CHOOSE SIDE | CTRL+S: SAVE</span>
+    </div>
+  </div>
+  <div class="m-table-wrap" style="border: none;">
+    <table class="m-grid-table" id="entriesTable">
+      <thead>
+        <tr>
+          <th style="width: 40px; text-align: center;">#</th>
+          <th>Ledger Account Name</th>
+          <th style="width: 150px;">Dr / Cr</th>
+          <th style="width: 200px; text-align: right;">Amount (₹)</th>
+          <th style="width: 60px;"></th>
+        </tr>
+      </thead>
+      <tbody id="entriesBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="m-card" style="padding: 20px;">
+  <div class="m-entry-item">
+    <label class="m-entry-label">Narration / Remarks</label>
+    <input type="text" id="narration" class="m-input" value="{{ voucher.narration or '' }}" placeholder="Enter transaction description...">
+  </div>
+</div>
+
+<div class="m-footer-bar">
+  <div style="flex: 1; display: flex; gap: 50px; align-items: center;">
+    <div>
+      <div class="m-entry-label">Total Debit</div>
+      <div id="totalDr" style="font-family: var(--m-font-mono); font-weight: 700; color: var(--m-accent);">₹0.00</div>
+    </div>
+    <div>
+      <div class="m-entry-label">Total Credit</div>
+      <div id="totalCr" style="font-family: var(--m-font-mono); font-weight: 700; color: var(--m-accent);">₹0.00</div>
+    </div>
+    <div style="margin-left: auto; text-align: right;">
+      <div class="m-entry-label" id="diffLabel">Difference</div>
+      <div class="m-grand-total" id="totalDiff">₹0.00</div>
+    </div>
+  </div>
+  <div style="display: flex; gap: 15px;">
+    <a href="{{ url_for('dashboard.index') }}" class="m-btn m-btn-outline">Cancel</a>
+    <button class="m-btn m-btn-accent" onclick="saveVoucher()" style="padding: 12px 30px;">Accept (Ctrl+S)</button>
+  </div>
+</div>
+
+<div id="ledgerPortal" class="m-item-ac" style="display:none;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const VTYPE = '{{ vtype }}';
+const EDIT_MODE = {{ 'true' if edit else 'false' }};
+const VOUCHER_ID = {{ voucher.id if edit else 'null' }};
+let entryCount = 0;
+
+function addEntry(data={}) {
+  entryCount++; const n = entryCount;
+  const tbody = document.getElementById('entriesBody');
+  const tr = document.createElement('tr'); tr.id = 'entry-'+n;
+  tr.innerHTML = `
+    <td style="text-align: center; color: var(--m-gray); font-size: 10px;">${n}</td>
+    <td style="position:relative;">
+      <input type="text" class="m-grid-input entry-ledger" placeholder="Search ledger…"
+        oninput="searchLedger(this,${n})" onkeydown="entryKD(event,${n})" value="${data.name||''}" autocomplete="off">
+      <input type="hidden" class="entry-id" value="${data.id||''}">
+    </td>
+    <td>
+      <select class="m-grid-input entry-type" onchange="calcEntries()" style="background: transparent; cursor: pointer;">
+        <option value="Dr" ${data.type==='Dr'?'selected':''}>Dr (Debit)</option>
+        <option value="Cr" ${data.type==='Cr'?'selected':''}>Cr (Credit)</option>
+      </select>
+    </td>
+    <td><input type="number" class="m-grid-input entry-amt" value="${data.amount||0}" step="any" style="text-align:right;" oninput="calcEntries()"></td>
+    <td style="text-align: center;">
+      <div style="display: flex; align-items: center; gap: 10px; justify-content: center;">
+        <span class="bank-trigger" style="display:none; cursor:pointer; font-size: 10px; color: var(--m-accent);" onclick="toggleBank(${n})">ALLOC</span>
+        <span onclick="removeEntry(${n})" style="cursor:pointer; color: var(--m-red); font-weight: 900;">×</span>
+      </div>
+    </td>
+  `;
+  
+  const bankRow = document.createElement('tr'); bankRow.id = 'bank-row-'+n; bankRow.style.display = 'none';
+  bankRow.innerHTML = `
+    <td></td>
+    <td colspan="4">
+      <div class="bank-details-box">
+        <div class="m-entry-label" style="margin-bottom: 10px; color: var(--m-accent);">Bank Allocation</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+          <div class="m-entry-item"><label class="m-entry-label">Type</label><select class="m-input entry-bank-tx-type"><option>Others</option><option>Cheque</option><option>NEFT</option><option>UPI</option></select></div>
+          <div class="m-entry-item"><label class="m-entry-label">Inst No</label><input class="m-input entry-inst-no" placeholder="—"></div>
+          <div class="m-entry-item"><label class="m-entry-label">Date</label><input class="m-input entry-inst-date" type="date" value="${document.getElementById('vDate').value}"></div>
+          <div class="m-entry-item"><label class="m-entry-label">Bank Name</label><input class="m-input entry-bank-name" placeholder="—"></div>
+        </div>
+      </div>
+    </td>
+  `;
+  
+  tbody.appendChild(tr);
+  tbody.appendChild(bankRow);
+  
+  if (data.bank_tx_type) {
+    tr.querySelector('.bank-trigger').style.display = 'block';
+    bankRow.querySelector('.entry-bank-tx-type').value = data.bank_tx_type;
+    bankRow.querySelector('.entry-inst-no').value = data.inst_no || '';
+    bankRow.querySelector('.entry-inst-date').value = data.inst_date || '';
+    bankRow.querySelector('.entry-bank-name').value = data.bank_name || '';
+  }
+  
+  calcEntries();
+  if (!data.name) tr.querySelector('.entry-ledger').focus();
+}
+
+function removeEntry(n) { document.getElementById('entry-'+n)?.remove(); document.getElementById('bank-row-'+n)?.remove(); calcEntries(); }
+function toggleBank(n) { const r = document.getElementById('bank-row-'+n); r.style.display = r.style.display === 'none' ? 'table-row' : 'none'; }
+
+function calcEntries() {
+  let dr=0, cr=0;
+  document.querySelectorAll('#entriesBody tr[id^="entry-"]').forEach(row => {
+    const amt = parseFloat(row.querySelector('.entry-amt').value)||0;
+    const type = row.querySelector('.entry-type').value;
+    if (type === 'Dr') dr += amt; else cr += amt;
+  });
+  document.getElementById('totalDr').textContent = '₹'+dr.toFixed(2);
+  document.getElementById('totalCr').textContent = '₹'+cr.toFixed(2);
+  const diff = Math.abs(dr-cr);
+  document.getElementById('totalDiff').textContent = '₹'+diff.toFixed(2);
+  document.getElementById('totalDiff').style.color = diff < 0.01 ? 'var(--m-green)' : 'var(--m-red)';
+}
+
+const _portal = document.getElementById('ledgerPortal');
+async function searchLedger(input, n) {
+  const q = input.value;
+  if (q.length < 1) { _portal.style.display = 'none'; return; }
+  const groups = VTYPE === 'Contra' ? 'Cash-in-Hand,Bank Accounts' : '';
+  const res = await fetch(`/ledger/api/search?q=${encodeURIComponent(q)}&groups=${groups}`);
+  const data = await res.json();
+  const html = data.map(l => `
+    <div class="m-ac-row" onclick="selectLedger(${n}, ${JSON.stringify(l).replace(/"/g, '&quot;')})">
+      <div>
+        <div style="font-weight:700; font-size: 14px;">${l.name}</div>
+        <div style="font-size:10px; color:var(--m-gray); margin-top: 2px;">${l.group}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:10px; color:var(--m-accent); font-weight:700;">Balance: ₹${l.balance || '0.00'}</div>
+      </div>
+    </div>
+  `).join('');
+  _portal.innerHTML = html;
+  _portal.style.display = 'block';
+
+  const r = input.getBoundingClientRect();
+  const parentRect = _portal.offsetParent ? _portal.offsetParent.getBoundingClientRect() : { top: 0, left: 0 };
+  
+  _portal.style.top = (r.bottom - parentRect.top) + 'px';
+  _portal.style.left = (r.left - parentRect.left) + 'px';
+  _portal.style.width = r.width + 'px';
+}
+
+function selectLedger(n, l) {
+  const row = document.getElementById('entry-' + n);
+  row.querySelector('.entry-ledger').value = l.name;
+  row.querySelector('.entry-id').value = l.id;
+  const trigger = row.querySelector('.bank-trigger');
+  if (l.group === 'Bank Accounts') trigger.style.display = 'block'; else trigger.style.display = 'none';
+  _portal.style.display = 'none';
+  row.querySelector('.entry-amt').focus();
+}
+
+function entryKD(e, n) {
+  if (e.key === 'Enter') { e.preventDefault(); addEntry({ type: document.getElementById('entry-'+n).querySelector('.entry-type').value === 'Dr' ? 'Cr' : 'Dr' }); }
+}
+
+async function saveVoucher() {
+  const entries = [];
+  document.querySelectorAll('#entriesBody tr[id^="entry-"]').forEach(row => {
+    const id = row.querySelector('.entry-id').value;
+    const amt = parseFloat(row.querySelector('.entry-amt').value)||0;
+    if (!id || amt <= 0) return;
+    const n = row.id.split('-')[1];
+    const br = document.getElementById('bank-row-'+n);
+    entries.push({
+      ledger_id: id, amount: amt, dr_cr: row.querySelector('.entry-type').value,
+      bank_tx_type: br.querySelector('.entry-bank-tx-type').value,
+      inst_no: br.querySelector('.entry-inst-no').value,
+      inst_date: br.querySelector('.entry-inst-date').value,
+      bank_name: br.querySelector('.entry-bank-name').value
+    });
+  });
+  
+  const payload = {
+    date: document.getElementById('vDate').value,
+    narration: document.getElementById('narration').value,
+    payment_mode: document.getElementById('paymentMode').value,
+    ref_number: document.getElementById('refNumber').value,
+    entries
+  };
+  
+  const url = EDIT_MODE ? `/voucher/edit/${VOUCHER_ID}` : `/voucher/create/${VTYPE}`;
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const data = await res.json();
+  if (data.success) window.location = `/voucher/view/${data.id}`;
+  else alert(data.error || 'Failed to save');
+}
+
+// Keys
+document.addEventListener('keydown', e => { 
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey && k === 'a') { e.preventDefault(); saveVoucher(); } 
+});
+
+// Init
+{% if edit and voucher.ledger_entries %}
+  {% for entry in voucher.ledger_entries %}
+    addEntry({ id:"{{ entry.ledger_id }}", name:"{{ entry.ledger.name }}", amount:{{ entry.debit if entry.debit > 0 else entry.credit }}, type:"{{ 'Dr' if entry.debit > 0 else 'Cr' }}", bank_tx_type:"{{ entry.bank_tx_type or '' }}", inst_no:"{{ entry.inst_no or '' }}", inst_date:"{{ entry.inst_date.isoformat() if entry.inst_date else '' }}", bank_name:"{{ entry.bank_name or '' }}" });
+  {% endfor %}
+{% else %}
+  addEntry({ type: 'Dr' }); addEntry({ type: 'Cr' });
+{% endif %}
+</script>
+{% endblock %}

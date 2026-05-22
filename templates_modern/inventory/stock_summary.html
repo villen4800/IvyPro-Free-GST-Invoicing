@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Stock Summary{% endblock %}
+{% block page_title %}Stock Summary{% endblock %}
+
+{% block content %}
+<div class="m-card">
+  <div class="m-card-header">
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <span class="m-card-title">Stock Summary</span>
+      {% if current_group %}
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--m-gray);">
+        <a href="{{ url_for('inventory.stock_summary') }}" style="color: var(--m-accent); text-decoration: none;">Primary</a>
+        {% if current_group.parent %}
+          <span>/</span>
+          <a href="{{ url_for('inventory.stock_summary', group_id=current_group.parent_id) }}" style="color: var(--m-accent); text-decoration: none;">{{ current_group.parent.name }}</a>
+        {% endif %}
+        <span>/</span>
+        <span style="color: var(--m-text); font-weight: 700;">{{ current_group.name }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:10px;">
+      <form action="{{ url_for('inventory.stock_summary') }}" method="GET" style="display: flex; gap: 10px;">
+        {% if current_group %}<input type="hidden" name="group_id" value="{{ current_group.id }}">{% endif %}
+        <input type="text" name="q" id="ssSearch" placeholder="Search in this group..." class="m-input" 
+               style="width: 200px; height: 32px; font-size: 11px; padding: 0 10px;" value="{{ q or '' }}" autocomplete="off">
+      </form>
+      <button onclick="window.print()" class="m-btn m-btn-outline" style="padding: 5px 15px;">Print</button>
+    </div>
+  </div>
+
+  <div class="m-table-wrap" style="border: none; border-radius: 0;">
+    <table class="m-table" id="ssTable">
+      <thead>
+        <tr>
+          <th style="width: 40px;"></th>
+          <th>Particulars</th>
+          <th style="width: 120px;">HSN/SAC</th>
+          <th style="width: 80px;">Unit</th>
+          <th style="text-align: right; width: 100px;">Opening</th>
+          <th style="text-align: right; width: 100px;">Inward</th>
+          <th style="text-align: right; width: 100px;">Outward</th>
+          <th style="text-align: right; width: 120px;">Closing Stock</th>
+          <th style="text-align: right; width: 140px;">Stock Value (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in result %}
+        <tr onclick="window.location='{{ url_for('inventory.stock_summary', group_id=r.id) if r.type == 'group' else url_for('inventory.stock_ledger', item_id=r.id) }}'" 
+            style="cursor: pointer; {% if r.type == 'group' %}background: rgba(255, 204, 0, 0.03);{% endif %}">
+          <td style="text-align: center;">
+            {{ '📁' if r.type == 'group' else '📦' }}
+          </td>
+          <td>
+            <div style="font-weight: 700; color: {% if r.type == 'group' %}var(--m-gold){% else %}var(--m-text){% endif %}; text-transform: {% if r.type == 'group' %}uppercase{% else %}none{% endif %};">
+              {{ r.name }}
+            </div>
+          </td>
+          <td style="font-size: 10px; color: var(--m-gray); font-family: var(--m-font-mono);">
+            {{ r.item.hsn_code if r.type == 'item' else '' }}
+          </td>
+          <td style="color: var(--m-gray); text-transform: uppercase;">
+            {{ r.item.unit.symbol if r.type == 'item' and r.item.unit else '' }}
+          </td>
+          <td style="text-align: right; font-family: var(--m-font-mono);">{{ "{:g}".format(r.stats.opening) }}</td>
+          <td style="text-align: right; font-family: var(--m-font-mono); color: var(--m-green);">{{ "{:g}".format(r.stats.inward) }}</td>
+          <td style="text-align: right; font-family: var(--m-font-mono); color: var(--m-red);">{{ "{:g}".format(r.stats.outward) }}</td>
+          <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 700; color: {% if r.stats.closing <= 0 %}var(--m-red){% else %}var(--m-green){% endif %};">
+            {{ "{:g}".format(r.stats.closing) }}
+          </td>
+          <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 900; color: var(--m-accent);">₹{{ "{:,.2f}".format(r.stats.value) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--m-gray);">No items or groups found here.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if result %}
+      <tfoot>
+        <tr style="background: var(--m-panel); border-top: 2px solid var(--m-accent);">
+          <td colspan="8" style="text-align: right; padding: 20px; color: var(--m-gray); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Grand Total Value</td>
+          <td style="text-align: right; padding: 20px; font-family: var(--m-font-mono); font-weight: 900; color: var(--m-accent); font-size: 16px;">₹{{ "{:,.2f}".format(total_value) }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<script>
+function filterTable(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#ssTable tbody tr').forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+enableTableNav('ssTable');
+</script>
+{% endblock %}

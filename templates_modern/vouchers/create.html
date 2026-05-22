@@ -1,0 +1,1407 @@
+{% extends "base.html" %}
+{% block title %}{% if edit %}Edit{% else %}New{% endif %} {{ vtype }}{% endblock %}
+{% block page_title %}{{ vtype }} Entry{% endblock %}
+
+{% block extra_css %}
+<style>
+.m-entry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
+.m-entry-item { display: flex; flex-direction: column; gap: 8px; }
+.m-entry-label { font-size: 10px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+
+.m-grid-table { width: 100%; border-collapse: separate; border-spacing: 0; font-family: var(--m-font-mono); font-size: 13px; }
+.m-grid-table th { background: var(--m-panel); color: var(--m-gray); padding: 12px 10px; text-align: left; font-size: 10px; border-bottom: 2px solid var(--m-border); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; position: sticky; top: 0; z-index: 10; }
+.m-grid-table td { border-bottom: 1px solid var(--m-border); border-right: 1px solid var(--m-border); padding: 0; height: 42px; vertical-align: middle; position: relative; }
+.m-grid-table td:first-child { border-left: 1px solid var(--m-border); }
+.m-grid-input { 
+  width: 100%; height: 100%; background: transparent; border: none; color: var(--m-text); 
+  padding: 0 12px; font-family: inherit; font-size: 13px; font-weight: 600; outline: none; 
+  transition: all 0.15s ease; display: block; box-sizing: border-box;
+}
+.m-grid-input:focus { 
+  background: var(--m-surface); 
+  box-shadow: inset 0 0 0 2px var(--m-accent) !important; 
+  z-index: 2; 
+  position: relative;
+  border-radius: 2px;
+}
+select.m-grid-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 25px;
+}
+.m-grid-input[readonly] { color: var(--m-gray); background: var(--m-bg); cursor: not-allowed; opacity: 0.7; }
+
+
+/* Force dark options */
+option { background-color: var(--m-surface) !important; color: var(--m-text) !important; padding: 10px; }
+option:hover { background-color: var(--m-accent) !important; color: #000 !important; }
+
+.m-footer-bar {
+  position: sticky; bottom: 0; background: var(--m-surface); border-top: 2px solid var(--m-accent);
+  display: flex; align-items: center; padding: 15px 30px; gap: 40px; margin: 20px -40px -40px; z-index: 100;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+}
+@media (max-width: 768px) {
+  .m-footer-bar { 
+    flex-direction: column; gap: 15px; padding: 15px; align-items: stretch; 
+    margin: 20px -20px -80px; width: calc(100% + 40px); 
+  }
+  .m-footer-bar > div:first-child { flex-direction: column; gap: 10px; align-items: stretch !important; }
+  .m-footer-bar > div:first-child > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .m-footer-bar > div:last-child { flex-direction: column; gap: 8px; }
+  .m-footer-bar .m-btn { width: 100%; justify-content: center; }
+  .m-grand-total { font-size: 20px; }
+  .m-entry-card { padding: 15px !important; }
+  .m-card-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .m-input { padding: 8px 12px; height: 38px; font-size: 12px; }
+  .m-grid-input { font-size: 11px; padding: 0 5px; }
+}
+.m-grand-total { font-size: 28px; font-weight: 900; color: var(--m-accent); letter-spacing: -1px; }
+.sn-badge:focus {
+  outline: 2px solid var(--m-accent) !important;
+  outline-offset: 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="m-vtypes-bar">
+  {% for vt in ['Sales', 'Purchase', 'Credit Note', 'Receipt', 'Payment', 'Journal', 'Contra'] %}
+  <a href="{{ url_for('vouchers.create', vtype=vt) }}" 
+     class="m-btn {% if vtype == vt %}m-btn-accent{% else %}m-btn-outline{% endif %}" 
+     style="padding: 6px 15px; font-size: 10px;">
+     {{ vt }}
+  </a>
+  {% endfor %}
+
+  {% if vtype == 'Sales' %}
+  <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+      <span style="font-size: 9px; color: var(--m-gray); font-weight: 800; text-transform: uppercase;">Interface:</span>
+      <a href="{{ url_for('vouchers.create', vtype='Sales', mode='standard') }}" class="m-btn m-btn-accent" style="padding: 4px 10px; font-size: 9px;">Standard</a>
+      <a href="{{ url_for('vouchers.create', vtype='Sales', mode='service') }}" class="m-btn m-btn-outline" style="padding: 4px 10px; font-size: 9px;">Service</a>
+      <a href="{{ url_for('vouchers.create', vtype='Sales', mode='pos') }}" class="m-btn m-btn-outline" style="padding: 4px 10px; font-size: 9px;">POS / Retail</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="m-card m-entry-card" style="padding: 30px;">
+  <div class="m-card m-entry-card" style="padding: 0; overflow: visible;">
+    <div style="display: flex; border-bottom: 1px solid var(--m-border); background: rgba(255,255,255,0.01);">
+        <div style="padding: 20px 25px; border-right: 1px solid var(--m-border); min-width: 250px;">
+            <label class="m-entry-label" style="color: var(--m-accent); font-weight: 800;">Voucher Number</label>
+            <div style="font-weight: 900; font-family: var(--m-font-mono); font-size: 22px; color: var(--m-text); letter-spacing: -0.5px;">{{ voucher.voucher_number if edit else next_number }}</div>
+        </div>
+        <div style="padding: 20px 25px; border-right: 1px solid var(--m-border); width: 220px;">
+            <label class="m-entry-label">Date</label>
+            <input type="date" id="vDate" class="m-input" value="{{ voucher.date.isoformat() if edit else today }}" style="font-family: var(--m-font-mono); border: none; background: transparent; padding: 0; height: auto; font-size: 16px; font-weight: 700;">
+        </div>
+        <div style="padding: 20px 25px; flex: 1;">
+            <label class="m-entry-label">Reference No. (PO/Bill)</label>
+            <input type="text" id="refNumber" class="m-input" value="{{ voucher.ref_number if edit else '' }}" placeholder="Enter reference number..." style="border: none; background: transparent; padding: 0; height: auto; font-size: 16px; font-weight: 600;">
+        </div>
+    </div>
+    
+    <div style="padding: 25px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 20px; align-items: end; background: var(--m-panel); border-bottom: 1px solid var(--m-border); border-radius: 0 0 12px 12px;">
+        <div style="position: relative;">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label class="m-entry-label" style="margin-bottom:0">Party / Ledger Name</label>
+                <a href="javascript:void(0)" id="ledgerEditLink" style="font-size: 9px; color: var(--m-accent); font-weight: 900; display: none; text-decoration: none;" onclick="openLedgerEdit()">✎ EDIT DETAILS</a>
+            </div>
+            <input type="text" id="partySearch" class="m-input" value="{{ voucher.party.name if edit else '' }}" placeholder="Search ledger..." autocomplete="off" oninput="searchLedger(this.value)" style="font-weight: 800; font-size: 16px; border: 2px solid var(--m-border); background: var(--m-surface); box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: all 0.2s;">
+            <input type="hidden" id="partyId" value="{{ voucher.party_ledger_id if edit else '' }}">
+            <div id="partyDropdown" class="m-item-ac" style="display:none; width: 100%; top: 100%; margin-top: 5px; z-index: 50; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"></div>
+        </div>
+
+        
+        <div data-gst-field>
+            <label class="m-entry-label">Place of Supply</label>
+            <select id="placeOfSupply" class="m-input" onchange="autoDetectGST()" style="background: var(--m-bg);">
+                <option value="{{ company.state }}">{{ company.state }} (Home)</option>
+                {% for code, sname in states %}
+                    {% if sname != company.state %}
+                    <option value="{{ sname }}">{{ sname }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div data-gst-field>
+            <label class="m-entry-label">GST Treatment</label>
+            <select id="gstType" class="m-input" onchange="updateGSTColumns()" style="background: var(--m-bg);">
+                <option value="intrastate" {% if edit and not voucher.is_igst %}selected{% endif %}>Intrastate (CGST/SGST)</option>
+                <option value="interstate" {% if edit and voucher.is_igst %}selected{% endif %}>Interstate (IGST)</option>
+                <option value="nongst" {% if edit and (voucher.cgst_amount==0 and voucher.sgst_amount==0 and voucher.igst_amount==0) %}selected{% endif %}>Non-GST / Exempt</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="m-entry-label">Payment Mode</label>
+            <select id="paymentMode" class="m-input" onchange="toggleBankSelect()" style="background: var(--m-bg);">
+                <option value="Cash" {% if edit and voucher.payment_mode=='Cash' %}selected{% elif not edit %}selected{% endif %}>Cash</option>
+                <option value="Credit" {% if edit and voucher.payment_mode=='Credit' %}selected{% endif %}>Credit</option>
+                <option value="Bank" {% if edit and voucher.payment_mode=='Bank' %}selected{% endif %}>Bank Account</option>
+            </select>
+        </div>
+    </div>
+    
+    <div id="bankSelectGroup" style="display: none; padding: 0 25px 25px; margin-top: -10px;">
+        <div style="width: 100%; border-top: 1px dashed var(--m-border); padding-top: 20px; display: flex; align-items: center; gap: 20px;">
+            <label class="m-entry-label" style="margin-bottom: 0; min-width: 150px;">Select Posting Account</label>
+            <select id="paymentLedgerId" class="m-input" style="max-width: 400px; background: var(--m-bg);">
+                {% for l in cash_bank_ledgers %}
+                    <option value="{{ l.id }}" data-group="{{ l.group.name }}" {% if edit and voucher.payment_ledger_id == l.id %}selected{% endif %}>{{ l.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+  </div>
+
+  <div class="m-card m-entry-card" style="margin-top: 15px; border-left: 4px solid var(--m-gray); opacity: 0.8;" data-gst-field>
+    <div class="m-card-header" tabindex="0" style="cursor: pointer; padding: 12px 25px;" onclick="toggleLogistics()">
+        <span class="m-card-title" style="font-size: 11px; color: var(--m-gray);"><i class="ri-truck-line"></i> Logistics & Compliance (e-Way Bill / TDS / RCM)</span>
+        <i class="ri-arrow-down-s-line" id="logisticsIcon" style="transition: transform 0.3s; font-size: 14px;"></i>
+    </div>
+    <div id="logisticsContent" style="display: none; padding: 0 25px 25px;">
+        <div class="m-grid-form">
+            <div class="m-entry-item">
+                <label class="m-entry-label">e-Way Bill No.</label>
+                <input type="text" id="ewayBillNo" class="m-input" value="{{ voucher.eway_bill_no or '' }}" placeholder="12-digit number">
+            </div>
+            <div class="m-entry-item">
+                <label class="m-entry-label">Vehicle No.</label>
+                <input type="text" id="vehicleNo" class="m-input" value="{{ voucher.vehicle_no or '' }}" placeholder="e.g. MH-12-AB-1234">
+            </div>
+            <div class="m-entry-item">
+                <label class="m-entry-label">Transporter</label>
+                <input type="text" id="transporterName" class="m-input" value="{{ voucher.transporter_name or '' }}" placeholder="Name / ID">
+            </div>
+            <div class="m-entry-item">
+                <label class="m-entry-label">TDS Rate (%)</label>
+                <input type="number" id="tdsPercent" class="m-input" value="{{ voucher.tds_percent or 0 }}" step="0.01" oninput="calcTotals()">
+            </div>
+            <div id="rcmContainer" class="m-entry-item" style="display: flex; align-items: center; height: 38px; margin-top: 20px;">
+                <label class="m-entry-label" style="margin-bottom: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="reverseCharge" {% if voucher.reverse_charge %}checked{% endif %} style="width: 16px; height: 16px;" onchange="calcTotals()">
+                    Reverse Charge (RCM)
+                </label>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="m-card m-entry-card" style="margin-top: 15px; border-left: 4px solid var(--m-accent); opacity: 0.9;">
+    <div class="m-card-header" tabindex="0" style="cursor: pointer; padding: 12px 25px;" onclick="toggleAddressCard()">
+        <span class="m-card-title" style="font-size: 11px; color: var(--m-text);"><i class="ri-map-pin-line"></i> Shipping Address / Consignee (Custom / Multi-Address)</span>
+        <i class="ri-arrow-down-s-line" id="addressIcon" style="transition: transform 0.3s; font-size: 14px;"></i>
+    </div>
+    <div id="addressContent" style="display: none; padding: 0 25px 25px;">
+        <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 15px; background: var(--m-bg); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--m-border);">
+            <label class="m-entry-label" style="margin-bottom: 0; min-width: max-content;">Select Saved Shipping Address:</label>
+            <select id="savedAddressSelect" class="m-input" style="background: var(--m-surface);" onchange="applySavedAddress(this.value)">
+                <option value="">-- Master Ledger Address --</option>
+            </select>
+            <button type="button" class="m-btn m-btn-outline" style="font-size: 10px; white-space: nowrap;" onclick="saveCustomAddressToParty()">
+                <i class="ri-save-line"></i> Save Custom Shipping Address to Party
+            </button>
+        </div>
+
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--m-border); padding-bottom: 5px;">
+                <div style="font-weight: 800; font-size: 13px; color: var(--m-accent);">SHIPPING ADDRESS (CONSIGNEE)</div>
+                <label style="font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; margin: 0;">
+                    <input type="checkbox" id="sameAsBilling" checked onchange="toggleShippingFields()"> Same as Billing (Master Address)
+                </label>
+            </div>
+            <div id="shippingFieldsGroup" style="display: none;">
+                <div class="m-entry-item" style="margin-bottom: 10px;">
+                    <label class="m-entry-label">Address Line</label>
+                    <textarea id="shippingAddress" class="m-input" rows="2" placeholder="Street, Landmark...">{{ voucher.shipping_address or '' }}</textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label class="m-entry-label">City</label>
+                        <input type="text" id="shippingCity" class="m-input" value="{{ voucher.shipping_city or '' }}" placeholder="City">
+                    </div>
+                    <div>
+                        <label class="m-entry-label">State</label>
+                        <input type="text" id="shippingState" class="m-input" value="{{ voucher.shipping_state or '' }}" placeholder="State">
+                    </div>
+                    <div>
+                        <label class="m-entry-label">Pincode</label>
+                        <input type="text" id="shippingPincode" class="m-input" value="{{ voucher.shipping_pincode or '' }}" placeholder="Pincode">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+<div class="m-card m-entry-card" style="margin-top: 20px; overflow: visible;">
+  <div class="m-card-header" style="background: var(--m-panel); padding: 15px 25px; border-bottom: 2px solid var(--m-border); border-radius: 12px 12px 0 0;">
+    <span class="m-card-title" style="font-weight: 900; letter-spacing: -0.5px; font-size: 16px;"><i class="ri-box-3-fill" style="color:var(--m-accent)"></i> Itemized Inventory Breakdown</span>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <button type="button" class="m-btn m-btn-accent" style="padding: 8px 20px; font-size: 11px; font-weight: 800; box-shadow: 0 4px 15px var(--m-accent-muted);" onclick="addRow()" tabindex="-1" data-nav-skip="true">
+        <i class="ri-add-line"></i> ADD ITEM (ALT+R)
+      </button>
+      <div style="font-size: 10px; color: var(--m-gray); font-weight: 700; background: var(--m-bg); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--m-border);">CTRL+S: SAVE</div>
+    </div>
+  </div>
+
+  <div class="m-table-wrap" style="border: none; padding: 10px;">
+    <table class="m-grid-table" id="itemsTable">
+      <thead style="background: transparent;">
+        <tr>
+          <th style="width: 40px; text-align: center;">#</th>
+          <th>Description / Service Name</th>
+          <th class="col-hsn" style="width: 110px;">HSN/SAC</th>
+          <th style="width: 90px; text-align: right;">Qty</th>
+          <th style="width: 70px;">Unit</th>
+          <th style="width: 110px; text-align: right;">Rate</th>
+          <th style="width: 70px; text-align: right;">Disc%</th>
+          <th class="gst-only" style="width: 75px; text-align: right;">GST%</th>
+          <th class="col-cgst" style="width: 90px; text-align: right;">CGST</th>
+          <th class="col-sgst" style="width: 90px; text-align: right;">SGST</th>
+          <th class="col-igst" style="width: 110px; text-align: right; display: none;">IGST</th>
+          <th style="width: 130px; text-align: right;">Amount (₹)</th>
+          <th style="width: 120px;">Serial Nos</th>
+          <th style="width: 45px;"></th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="m-card m-entry-card" style="padding: 20px; margin-top: 15px; border-left: 4px solid var(--m-border);">
+  <div class="m-entry-item">
+    <label class="m-entry-label" style="font-size: 10px; opacity: 0.7;">Voucher Narration / Internal Remarks</label>
+    <div class="m-flex gap-2" style="margin-top: 8px;">
+        <textarea id="narration" class="m-input" placeholder="Enter transaction description..." style="flex: 1; height: 60px; min-height: 60px; background: transparent; border-color: transparent; padding-left: 0; font-size: 14px; font-weight: 500;">{{ voucher.narration or '' }}</textarea>
+        {% if company.terms %}
+        <button type="button" class="m-btn m-btn-outline" style="font-size: 10px; white-space: nowrap; height: 32px;" onclick="applyDefaultTerms()">Apply T&C</button>
+        {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="m-footer-bar" style="height: 90px; padding: 0 40px; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); border-top: 1px solid var(--m-border);">
+  <div style="flex: 1; display: flex; gap: 40px; align-items: center;">
+    <div>
+      <div class="m-entry-label" style="margin-bottom: 2px; opacity: 0.6;">Taxable Value</div>
+      <div id="sum-taxable" style="font-family: var(--m-font-mono); font-weight: 800; font-size: 18px; color: var(--m-text);">₹0.00</div>
+    </div>
+    <div class="col-cgst" style="border-left: 1px solid var(--m-border); padding-left: 30px;">
+      <div class="m-entry-label" style="margin-bottom: 2px; opacity: 0.6;">CGST Total</div>
+      <div id="sum-cgst" style="font-family: var(--m-font-mono); font-weight: 600; color: var(--m-gray);">₹0.00</div>
+    </div>
+    <div class="col-sgst" style="border-left: 1px solid var(--m-border); padding-left: 30px;">
+      <div class="m-entry-label" style="margin-bottom: 2px; opacity: 0.6;">SGST Total</div>
+      <div id="sum-sgst" style="font-family: var(--m-font-mono); font-weight: 600; color: var(--m-gray);">₹0.00</div>
+    </div>
+    <div class="col-igst" style="display: none; border-left: 1px solid var(--m-border); padding-left: 30px;">
+      <div class="m-entry-label" style="margin-bottom: 2px; opacity: 0.6;">IGST Total</div>
+      <div id="sum-igst" style="font-family: var(--m-font-mono); font-weight: 600; color: var(--m-gray);">₹0.00</div>
+    </div>
+    <div style="margin-left: auto; text-align: right; background: var(--m-accent-muted); padding: 10px 25px; border-radius: 12px;">
+      <div class="m-entry-label" style="margin-bottom: 0; color: var(--m-accent); font-weight: 900; opacity: 1;">Total Payable</div>
+      <div class="m-grand-total" id="sum-total" style="font-size: 26px; color: var(--m-text);">₹0.00</div>
+    </div>
+  </div>
+  <div style="display: flex; gap: 20px; padding-left: 40px;">
+    <a href="{{ url_for('dashboard.index') }}" class="m-btn m-btn-outline" style="border-color: var(--m-border); color: var(--m-gray);">Cancel</a>
+    <button class="m-btn m-btn-accent" onclick="saveVoucher()" style="padding: 15px 45px; font-size: 14px; font-weight: 900; box-shadow: 0 10px 30px var(--m-accent-muted);">
+      <i class="ri-checkbox-circle-line"></i> SAVE VOUCHER (CTRL+S)
+    </button>
+  </div>
+</div>
+
+<div id="itemDropPortal" class="m-item-ac" style="display:none;"></div>
+
+<!-- Quick Create Ledger Modal -->
+<div id="partyCreateModal" class="m-modal-overlay" style="align-items: center; padding-top: 0; display:none;">
+    <div class="m-card" style="width: 500px; max-width: 95vw; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; box-shadow: 0 30px 100px rgba(0,0,0,0.5);">
+        <div class="m-card-header" style="padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="m-card-title">✨ Create New Party</span>
+            <span onclick="closePartyCreate()" style="cursor:pointer; font-size: 20px; color: var(--m-gray);">&times;</span>
+        </div>
+        <div class="m-card-body" style="padding: 25px;">
+            <div class="m-form-group">
+                <label class="m-label">Party / Ledger Name <span style="color:var(--m-red)">*</span></label>
+                <input type="text" id="newPartyName" class="m-input" placeholder="e.g. Acme Corp Ltd">
+            </div>
+            <div class="m-form-group" data-gst-field>
+                <label class="m-label">GSTIN (Optional)</label>
+                <div style="display:flex; gap: 8px;">
+                    <input type="text" id="newPartyGstin" class="m-input" maxlength="15" style="text-transform:uppercase; flex: 1;" placeholder="15-digit GSTIN">
+                    <button type="button" class="m-btn m-btn-outline" style="font-size: 9px; white-space: nowrap;" onclick="lookupGSTForNewParty()">Lookup GST</button>
+                </div>
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Principal Place of Business</label>
+                <input type="text" id="newPartyAddress" class="m-input" placeholder="Shop/Building/Street...">
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Mobile Number</label>
+                <input type="text" id="newPartyPhone" class="m-input" placeholder="e.g. 9876543210" maxlength="15">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div class="m-form-group">
+                    <label class="m-label">City</label>
+                    <input type="text" id="newPartyCity" class="m-input">
+                </div>
+                <div class="m-form-group">
+                    <label class="m-label">State</label>
+                    <select id="newPartyState" class="m-input">
+                        {% for code, sname in states %}
+                        <option value="{{ sname }}" data-code="{{ code }}">{{ sname }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="m-form-group">
+                    <label class="m-label">Pincode</label>
+                    <input type="text" id="newPartyPincode" class="m-input" maxlength="6">
+                </div>
+            </div>
+            <div style="display:flex; gap: 15px; margin-top: 20px;">
+                <button type="button" class="m-btn m-btn-outline" style="flex:1; justify-content:center;" onclick="closePartyCreate()">Cancel</button>
+                <button type="button" class="m-btn m-btn-accent" style="flex:1; justify-content:center;" onclick="saveNewParty()">Create & Select (Ctrl+S)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GST Captcha Modal for Quick Create -->
+<div id="gstCaptchaModal" class="m-modal-overlay" style="align-items: center; padding-top: 0; display:none; z-index: 200000;">
+    <div class="m-card" style="width: 350px; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; box-shadow: 0 30px 100px rgba(0,0,0,0.5);">
+        <div class="m-card-header" style="padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="m-card-title">🛡️ GST Portal Verify</span>
+            <span onclick="closeGstCaptcha()" style="cursor:pointer; font-size: 20px; color: var(--m-gray);">&times;</span>
+        </div>
+        <div class="m-card-body" style="padding: 25px; text-align: center;">
+            <div style="background: white; padding: 10px; border-radius: 8px; display: inline-block; margin-bottom: 20px;">
+                <img id="gstCaptchaImg" src="" alt="Captcha" style="height: 60px;">
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Enter characters shown above</label>
+                <input type="text" id="gstCaptchaInput" class="m-input" style="text-align: center; font-size: 20px; letter-spacing: 5px; text-transform: uppercase;" autocomplete="off">
+            </div>
+            <div style="display:flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="m-btn m-btn-outline" style="flex:1; justify-content:center;" onclick="refreshGstCaptcha()"><i class="ri-refresh-line"></i></button>
+                <button type="button" class="m-btn m-btn-accent" style="flex:3; justify-content:center;" onclick="submitOfficialLookup()">Verify & Fetch</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Edit Ledger Modal -->
+<div id="ledgerEditModal" class="m-modal-overlay" style="align-items: center; padding-top: 0; display:none;">
+    <div class="m-card" style="width: 500px; max-width: 95vw; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; box-shadow: 0 30px 100px rgba(0,0,0,0.5);">
+        <div class="m-card-header" style="padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="m-card-title">Edit Ledger Details</span>
+            <span onclick="closeLedgerEdit()" style="cursor:pointer; font-size: 20px; color: var(--m-gray);">&times;</span>
+        </div>
+        <div class="m-card-body" style="padding: 25px;">
+            <input type="hidden" id="editLid">
+            <div class="m-form-group" data-gst-field>
+                <label class="m-label">GSTIN</label>
+                <input type="text" id="editGstin" class="m-input" maxlength="15" style="text-transform:uppercase">
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Principal Place of Business</label>
+                <input type="text" id="editAddress" class="m-input" placeholder="Shop/Building/Street...">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="m-form-group">
+                    <label class="m-label">City</label>
+                    <input type="text" id="editCity" class="m-input">
+                </div>
+                <div class="m-form-group">
+                    <label class="m-label">State</label>
+                    <select id="editState" class="m-input">
+                        {% for code, sname in states %}
+                        <option value="{{ sname }}" data-code="{{ code }}">{{ sname }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Pincode</label>
+                <input type="text" id="editPincode" class="m-input" maxlength="6">
+            </div>
+            <div style="display:flex; gap: 15px; margin-top: 20px;">
+                <button type="button" class="m-btn m-btn-outline" style="flex:1; justify-content:center;" onclick="closeLedgerEdit()">Cancel</button>
+                <button type="button" class="m-btn m-btn-accent" style="flex:1; justify-content:center;" onclick="saveLedgerQuickEdit()">Update & Sync (Ctrl+S)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Serial Numbers Modal -->
+<div id="serialModal" class="m-modal-overlay" style="align-items: center; padding-top: 0; display:none;">
+    <div class="m-card" style="width: 400px; max-width: 95vw; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; box-shadow: 0 30px 100px rgba(0,0,0,0.5);">
+        <div class="m-card-header" style="padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="m-card-title">Manage Serial Numbers</span>
+            <span onclick="closeSerialModal()" style="cursor:pointer; font-size: 20px; color: var(--m-gray);">&times;</span>
+        </div>
+        <div class="m-card-body" style="padding: 25px;">
+            <div id="availableSnsSection" style="display:none; margin-bottom: 20px;">
+                <label class="m-label">Available in Stock</label>
+                <div id="availableSnsList" style="max-height: 120px; overflow-y: auto; border: 1px solid var(--m-border); border-radius: 8px; padding: 10px; display: flex; flex-wrap: wrap; gap: 6px; background: var(--m-bg);">
+                    <!-- Serials will be injected here -->
+                </div>
+                <div style="font-size: 9px; color: var(--m-gray); margin-top: 5px;">Click to select/deselect</div>
+            </div>
+            <div class="m-form-group">
+                <label class="m-label">Assigned Serial Numbers (One per line)</label>
+                <textarea id="modalSns" class="m-input" style="height: 120px; font-family: var(--m-font-mono); font-size: 11px;"></textarea>
+                <div style="font-size: 10px; color: var(--m-gray); margin-top: 5px;">Qty will be auto-updated based on count.</div>
+            </div>
+            <input type="hidden" id="modalRowId">
+            <div style="display:flex; gap: 15px; margin-top: 20px;">
+                <button type="button" class="m-btn m-btn-outline" style="flex:1; justify-content:center;" onclick="closeSerialModal()">Cancel</button>
+                <button type="button" class="m-btn m-btn-accent" style="flex:1; justify-content:center;" onclick="saveSerialsFromModal()">Save Serials (Ctrl+S)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let modalTrigger = null;
+const VTYPE = '{{ vtype }}';
+const EDIT_MODE = {{ 'true' if edit else 'false' }};
+const VOUCHER_ID = {{ voucher.id if edit else 'null' }};
+const IS_COMPOSITION = {{ 'true' if company.gst_registration_type == 'Composition' else 'false' }};
+let rowCount = 0, isIGST = false;
+
+function addRow(data={}) {
+  rowCount++; const n = rowCount;
+  const tbody = document.getElementById('itemsBody');
+  const tr = document.createElement('tr'); tr.id = 'row-'+n;
+  tr.innerHTML = `
+    <td style="text-align: center; color: var(--m-gray); font-size: 10px; font-weight: 700;">${n}</td>
+    <td style="position:relative;">
+      <input type="text" class="m-grid-input item-desc" placeholder="Search item…"
+        oninput="searchItem(this,${n})" onkeydown="itemKD(event,${n})" value="${data.description||''}" autocomplete="off" style="padding-left:12px;">
+      <input type="hidden" class="item-id" value="${data.id||''}">
+    </td>
+    <td class="col-hsn"><input type="text" class="m-grid-input item-hsn" value="${data.hsn||''}" placeholder="—" style="text-align:center;" oninput="lookupHSN(this, ${n})"></td>
+    <td><input type="number" class="m-grid-input item-qty" value="${data.qty||1}" step="any" style="text-align:right; padding-right:8px;" oninput="calcRow(${n})"></td>
+    <td><input type="text" class="m-grid-input item-unit" value="${data.unit||''}" placeholder="Nos" style="text-align:center;"></td>
+    <td><input type="number" class="m-grid-input item-rate" value="${data.rate||0}" step="any" style="text-align:right; padding-right:8px;" oninput="calcRow(${n})"></td>
+    <td><input type="number" class="m-grid-input item-disc" value="${data.disc||0}" step="any" style="text-align:right; padding-right:8px;" oninput="calcRow(${n})"></td>
+    <td class="gst-only">
+      <select class="m-grid-input item-gst" onchange="calcRow(${n})" style="padding: 0 10px; background: transparent; text-align:right; cursor:pointer; font-weight: 700;">
+        <option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option>
+      </select>
+    </td>
+    <td class="col-cgst"><input type="text" class="m-grid-input item-cgst" readonly value="0.00" style="text-align:right; padding-right:8px; color:var(--m-gray);"></td>
+    <td class="col-sgst"><input type="text" class="m-grid-input item-sgst" readonly value="0.00" style="text-align:right; padding-right:8px; color:var(--m-gray);"></td>
+    <td class="col-igst" style="display:none;"><input type="text" class="m-grid-input item-igst" readonly value="0.00" style="text-align:right; padding-right:8px; color:var(--m-gray);"></td>
+    <td><input type="number" class="m-grid-input item-total" value="0.00" step="any" style="text-align:right; padding-right:12px; font-weight: 700; color: var(--m-accent);" oninput="calcRateFromTotal(${n})"></td>
+    <td>
+      <div style="display:flex; align-items:center; gap:5px; padding:0 5px;">
+        <button type="button" class="m-btn m-btn-outline" style="padding:2px 6px; font-size:9px;" onclick="openSerialModal(${n})">Add SN</button>
+        <span class="sn-count" style="font-size:10px; color:var(--m-accent); font-weight:700;"></span>
+      </div>
+      <input type="hidden" class="item-serials" value="${(data.serial_numbers||[]).join(',')}">
+    </td>
+    <td style="text-align: center;"><span onclick="removeRow(${n})" style="cursor:pointer; color: var(--m-red); font-weight: 900; font-size: 14px; opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</span></td>
+  `;
+  tbody.appendChild(tr);
+  if (data.gst !== undefined) tr.querySelector('.item-gst').value = data.gst;
+  updateGSTColumns();
+  if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+  if (!data.description) tr.querySelector('.item-desc').focus();
+}
+
+function removeRow(n) { document.getElementById('row-'+n)?.remove(); calcTotals(); }
+
+function calcRateFromTotal(n) {
+  const row = document.getElementById('row-'+n); if (!row) return;
+  const total = parseFloat(row.querySelector('.item-total').value)||0;
+  const qty = parseFloat(row.querySelector('.item-qty').value)||1;
+  const disc = parseFloat(row.querySelector('.item-disc').value)||0;
+  const gstRate = parseFloat(row.querySelector('.item-gst').value)||0;
+  const isNonGST = window.IS_GST_DISABLED || (IS_COMPOSITION && VTYPE === 'Sales') || document.getElementById('gstType').value === 'nongst';
+  
+  // Rate = Total / [Qty * (1 - Disc/100) * (1 + GstRate/100)]
+  const taxFactor = isNonGST ? 1 : (1 + gstRate/100);
+  const discFactor = (1 - disc/100);
+  const rate = total / (qty * discFactor * taxFactor);
+  
+  row.querySelector('.item-rate').value = rate.toFixed(4);
+  calcRow(n, true); // true means skip total update to avoid loop
+}
+
+function calcRow(n, skipTotal=false) {
+  const row = document.getElementById('row-'+n); if (!row) return;
+  const qty = parseFloat(row.querySelector('.item-qty').value)||0;
+  const rate = parseFloat(row.querySelector('.item-rate').value)||0;
+  const disc = parseFloat(row.querySelector('.item-disc').value)||0;
+  const gstRate = parseFloat(row.querySelector('.item-gst').value)||0;
+  const taxable = (qty*rate) * (1 - disc/100);
+  const isNonGST = window.IS_GST_DISABLED || (IS_COMPOSITION && VTYPE === 'Sales') || document.getElementById('gstType').value === 'nongst';
+  let cgst=0,sgst=0,igst=0;
+  if (!isNonGST) {
+    if (isIGST) igst = taxable*gstRate/100; else { cgst = taxable*(gstRate/2)/100; sgst = cgst; }
+  }
+  row.querySelector('.item-cgst').value = cgst.toFixed(2);
+  row.querySelector('.item-sgst').value = sgst.toFixed(2);
+  row.querySelector('.item-igst').value = igst.toFixed(2);
+  if (!skipTotal) row.querySelector('.item-total').value = (taxable+cgst+sgst+igst).toFixed(2);
+  calcTotals();
+}
+
+function calcTotals() {
+  let taxable=0,cgst=0,sgst=0,igst=0;
+  document.querySelectorAll('#itemsBody tr').forEach(row => {
+    const q=parseFloat(row.querySelector('.item-qty').value)||0;
+    const r=parseFloat(row.querySelector('.item-rate').value)||0;
+    const d=parseFloat(row.querySelector('.item-disc').value)||0;
+    taxable += (q*r) * (1 - d/100);
+    cgst += parseFloat(row.querySelector('.item-cgst').value)||0;
+    sgst += parseFloat(row.querySelector('.item-sgst').value)||0;
+    igst += parseFloat(row.querySelector('.item-igst').value)||0;
+  });
+  const isRCM = document.getElementById('reverseCharge')?.checked || false;
+  const total = isRCM ? taxable : (taxable+cgst+sgst+igst);
+  
+  // Calculate TDS
+  const tdsPct = parseFloat(document.getElementById('tdsPercent')?.value || 0);
+  const tdsAmt = taxable * tdsPct / 100;
+  const finalTotal = total - tdsAmt;
+
+  document.getElementById('sum-taxable').textContent = '₹'+taxable.toFixed(2);
+  document.getElementById('sum-cgst').textContent = '₹'+cgst.toFixed(2);
+  document.getElementById('sum-sgst').textContent = '₹'+sgst.toFixed(2);
+  document.getElementById('sum-igst').textContent = '₹'+igst.toFixed(2);
+  document.getElementById('sum-total').textContent = '₹'+Math.round(finalTotal).toLocaleString('en-IN');
+  
+  if (tdsAmt > 0) {
+      document.getElementById('sum-total').title = `Gross: ₹${total.toFixed(2)} - TDS: ₹${tdsAmt.toFixed(2)}`;
+  }
+}
+
+function updateGSTColumns() {
+  const gtype = document.getElementById('gstType').value;
+  isIGST = gtype === 'interstate';
+  
+  const hideGST = window.IS_GST_DISABLED || (IS_COMPOSITION && VTYPE === 'Sales') || gtype === 'nongst';
+  
+  document.querySelectorAll('.gst-only, .col-cgst, .col-sgst, .col-igst').forEach(el => el.style.display = 'none');
+  
+  if (!hideGST) {
+    document.querySelectorAll('.gst-only').forEach(el => el.style.display = '');
+    if (isIGST) {
+      document.querySelectorAll('.col-igst').forEach(el => el.style.display = '');
+    } else {
+      document.querySelectorAll('.col-cgst, .col-sgst').forEach(el => el.style.display = '');
+    }
+  }
+  
+  // Hide GST footer boxes as well
+  document.querySelectorAll('.col-cgst, .col-sgst, .col-igst').forEach(el => {
+      if (el.tagName === 'DIV') el.style.display = hideGST ? 'none' : (el.classList.contains('col-igst') ? (isIGST ? 'block' : 'none') : (isIGST ? 'none' : 'block'));
+  });
+
+  // Hide GST specific fields in header if composition or GST disabled
+  if ((IS_COMPOSITION || window.IS_GST_DISABLED) && VTYPE === 'Sales') {
+      document.querySelectorAll('[data-gst-field]').forEach(el => el.style.display = 'none');
+  }
+
+  document.querySelectorAll('#itemsBody tr').forEach(row => calcRow(row.id.split('-')[1]));
+}
+
+// ─── SEARCH LOGIC ───────────────────────────────────────────
+async function searchLedger(q) {
+  const dropdown = document.getElementById('partyDropdown');
+  if (q.length < 1) { dropdown.style.display = 'none'; return; }
+  const res = await fetch(`/ledger/api/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  
+  let html = data.map(l => `
+    <div class="m-ac-row" tabindex="0" onclick="selectLedger('${l.id}', '${l.name}', '${l.state || ''}')">
+      <div style="font-weight:700;">${l.name}</div>
+      <div style="font-size:10px; color:var(--m-gray); background: var(--m-bg); padding: 2px 6px; border-radius: 4px;">${l.group}</div>
+    </div>
+  `).join('');
+
+  // Add Create New option
+  html += `
+    <div class="m-ac-row" tabindex="0" style="background: var(--m-accent-muted); border-top: 1px solid var(--m-accent);" onclick="openPartyCreate('${q}')">
+      <div style="font-weight:900; color:var(--m-accent);"><i class="ri-add-line"></i> CREATE NEW: "${q.toUpperCase()}"</div>
+    </div>
+  `;
+
+  dropdown.innerHTML = html;
+  dropdown.style.display = 'block';
+  if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+}
+
+window.currentPartyBilling = {
+    address: {{ (voucher.billing_address or (voucher.party.address if voucher.party else ''))|tojson }},
+    city: {{ (voucher.billing_city or (voucher.party.city if voucher.party else ''))|tojson }},
+    state: {{ (voucher.billing_state or (voucher.party.state if voucher.party else ''))|tojson }},
+    pincode: {{ (voucher.billing_pincode or (voucher.party.pincode if voucher.party else ''))|tojson }},
+    gstin: {{ (voucher.billing_gstin or (voucher.party.gstin if voucher.party else ''))|tojson }}
+};
+
+function selectLedger(id, name, state) {
+  document.getElementById('partySearch').value = name;
+  document.getElementById('partyId').value = id;
+  document.getElementById('partyDropdown').style.display = 'none';
+  document.getElementById('ledgerEditLink').style.display = 'block';
+  
+  fetch(`/ledger/api/details/${id}`).then(res => res.json()).then(data => {
+      window.currentPartyBilling = {
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          pincode: data.pincode || '',
+          gstin: data.gstin || ''
+      };
+      
+      // Sync Place of Supply and GST logic using state from database details
+      const dbState = data.state || '';
+      if (dbState) {
+          const pos = document.getElementById('placeOfSupply');
+          const homeState = "{{ company.state }}";
+          if (dbState.trim().toLowerCase() !== homeState.trim().toLowerCase()) {
+              pos.value = dbState;
+          } else {
+              pos.value = homeState;
+          }
+          autoDetectGST();
+      }
+      
+      const rcmContainer = document.getElementById('rcmContainer');
+      const rcmCheckbox = document.getElementById('reverseCharge');
+      if (data.gstin && data.gstin.trim() !== '') {
+          if (rcmCheckbox) rcmCheckbox.checked = false;
+          if (rcmContainer) rcmContainer.style.display = 'none';
+      } else {
+          if (rcmContainer) rcmContainer.style.display = 'flex';
+      }
+      calcTotals();
+      
+      const select = document.getElementById('savedAddressSelect');
+      select.innerHTML = '<option value="">-- Master Ledger Address --</option>';
+      window.currentPartyAddresses = data.addresses || [];
+      if (data.addresses && data.addresses.length > 0) {
+          data.addresses.forEach(a => {
+              const opt = new Option(`${a.address_type}: ${a.address || ''} (${a.city || ''})`, a.id);
+              select.add(opt);
+          });
+      }
+      document.getElementById('sameAsBilling').checked = true;
+      toggleShippingFields();
+  });
+  
+  if (state) {
+    const pos = document.getElementById('placeOfSupply');
+    const homeState = "{{ company.state }}";
+    
+    // Normalize and compare
+    if (state.trim().toLowerCase() !== homeState.trim().toLowerCase()) {
+      pos.value = state;
+    } else {
+      pos.value = homeState;
+    }
+    autoDetectGST();
+    document.getElementById('placeOfSupply').focus();
+  } else {
+    document.getElementById('placeOfSupply').focus();
+  }
+}
+
+function toggleAddressCard() {
+    const content = document.getElementById('addressContent');
+    const icon = document.getElementById('addressIcon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+function toggleShippingFields() {
+    const same = document.getElementById('sameAsBilling').checked;
+    const group = document.getElementById('shippingFieldsGroup');
+    group.style.display = same ? 'none' : 'block';
+}
+
+function applySavedAddress(addrId) {
+    const sameCb = document.getElementById('sameAsBilling');
+    if (!addrId) {
+        sameCb.checked = true;
+        toggleShippingFields();
+        return;
+    }
+    const addr = (window.currentPartyAddresses || []).find(a => a.id == addrId);
+    if (addr) {
+        sameCb.checked = false;
+        toggleShippingFields();
+        document.getElementById('shippingAddress').value = addr.address || '';
+        document.getElementById('shippingCity').value = addr.city || '';
+        document.getElementById('shippingState').value = addr.state || '';
+        document.getElementById('shippingPincode').value = addr.pincode || '';
+    }
+}
+
+async function saveCustomAddressToParty() {
+    const lid = document.getElementById('partyId').value;
+    if (!lid) { alert('Please select a party first.'); return; }
+    
+    if (document.getElementById('sameAsBilling').checked) {
+        alert('Please uncheck "Same as Billing" and enter the custom shipping address details first.');
+        return;
+    }
+    
+    const address_type = prompt("Enter Shipping Address Name (e.g. Warehouse, Branch Office, Site):", "Warehouse");
+    if (!address_type) return;
+
+    const payload = {
+        ledger_id: lid,
+        address_type: address_type,
+        address: document.getElementById('shippingAddress').value,
+        city: document.getElementById('shippingCity').value,
+        state: document.getElementById('shippingState').value,
+        pincode: document.getElementById('shippingPincode').value,
+        gstin: window.currentPartyBilling ? window.currentPartyBilling.gstin : ''
+    };
+
+    const res = await fetch('/ledger/api/addresses/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert('Custom shipping address saved to party successfully!');
+        const name = document.getElementById('partySearch').value;
+        selectLedger(lid, name, payload.state);
+    } else {
+        alert(data.error || 'Failed to save address.');
+    }
+}
+
+async function openLedgerEdit() {
+    const lid = document.getElementById('partyId').value;
+    if (!lid) return;
+    
+    const res = await fetch(`/ledger/api/details/${lid}`);
+    const data = await res.json();
+    
+    document.getElementById('editLid').value = data.id;
+    document.getElementById('editGstin').value = data.gstin;
+    document.getElementById('editAddress').value = data.address;
+    document.getElementById('editCity').value = data.city;
+    document.getElementById('editState').value = data.state;
+    document.getElementById('editPincode').value = data.pincode;
+    
+    modalTrigger = document.activeElement;
+    document.getElementById('ledgerEditModal').style.display = 'flex';
+    if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+}
+
+function closeLedgerEdit() {
+    document.getElementById('ledgerEditModal').style.display = 'none';
+    if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; }
+}
+
+async function saveLedgerQuickEdit() {
+    const payload = {
+        id: document.getElementById('editLid').value,
+        gstin: document.getElementById('editGstin').value,
+        address: document.getElementById('editAddress').value,
+        city: document.getElementById('editCity').value,
+        state: document.getElementById('editState').value,
+        state_code: document.getElementById('editState').options[document.getElementById('editState').selectedIndex].dataset.code,
+        pincode: document.getElementById('editPincode').value
+    };
+    
+    const res = await fetch('/ledger/api/quick-edit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+        const pos = document.getElementById('placeOfSupply');
+        pos.value = payload.state;
+        autoDetectGST();
+        closeLedgerEdit();
+        // Update currentPartyBilling instantly
+        window.currentPartyBilling = {
+            address: payload.address,
+            city: payload.city,
+            state: payload.state,
+            pincode: payload.pincode,
+            gstin: payload.gstin
+        };
+        alert('Ledger details updated and synced with invoice.');
+    } else {
+        alert('Failed to update ledger.');
+    }
+}
+
+function openPartyCreate(initialName='') {
+    document.getElementById('newPartyName').value = initialName;
+    document.getElementById('newPartyGstin').value = '';
+    document.getElementById('newPartyAddress').value = '';
+    document.getElementById('newPartyPhone').value = '';
+    document.getElementById('newPartyCity').value = '';
+    document.getElementById('newPartyState').value = 'Maharashtra';
+    modalTrigger = document.activeElement;
+    document.getElementById('partyCreateModal').style.display = 'flex';
+    if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+    document.getElementById('partyDropdown').style.display = 'none';
+    
+    if (/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(initialName.toUpperCase())) {
+        document.getElementById('newPartyGstin').value = initialName.toUpperCase();
+        document.getElementById('newPartyName').value = 'Loading...';
+        lookupGSTForNewParty();
+    }
+}
+
+function closePartyCreate() {
+    document.getElementById('partyCreateModal').style.display = 'none';
+    if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; }
+}
+
+async function lookupGSTForNewParty() {
+    const gstin = document.getElementById('newPartyGstin').value.trim();
+    if (gstin.length !== 15) { alert('Enter 15-digit GSTIN'); return; }
+    refreshGstCaptcha();
+}
+
+async function refreshGstCaptcha() {
+    const img = document.getElementById('gstCaptchaImg');
+    const modal = document.getElementById('gstCaptchaModal');
+    img.src = ''; 
+    try {
+        const res = await fetch('/gst/api/official/captcha');
+        const data = await res.json();
+        if (data.success) {
+            img.src = 'data:image/png;base64,' + data.captcha_img;
+            modal.style.display = 'flex';
+            if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+            document.getElementById('gstCaptchaInput').value = '';
+            document.getElementById('gstCaptchaInput').focus();
+        } else {
+            alert(data.error || 'Failed to connect to GST Portal.');
+        }
+    } catch (e) {
+        alert('Network error connecting to GST portal.');
+    }
+}
+
+function closeGstCaptcha() {
+    document.getElementById('gstCaptchaModal').style.display = 'none';
+}
+
+async function submitOfficialLookup() {
+    const gstin = document.getElementById('newPartyGstin').value.trim();
+    const captcha = document.getElementById('gstCaptchaInput').value.trim();
+    if (!captcha) return;
+    
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Fetching...';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/gst/api/official/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({gstin, captcha})
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            const d = result.data;
+            document.getElementById('newPartyName').value = d.trade_name || d.legal_name;
+            document.getElementById('newPartyAddress').value = d.address;
+            document.getElementById('newPartyCity').value = d.city;
+            document.getElementById('newPartyState').value = d.state;
+            document.getElementById('newPartyPincode').value = d.pincode;
+            closeGstCaptcha();
+        } else {
+            alert(result.error || 'Invalid Captcha or GSTIN.');
+            refreshGstCaptcha();
+        }
+    } catch (e) {
+        alert('Error fetching details.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function saveNewParty() {
+    const name = document.getElementById('newPartyName').value.trim();
+    if (!name) { alert('Name is required'); return; }
+    
+    const payload = {
+        name: name,
+        vtype: "{{ vtype }}",
+        gstin: document.getElementById('newPartyGstin').value,
+        address: document.getElementById('newPartyAddress').value,
+        city: document.getElementById('newPartyCity').value,
+        state: document.getElementById('newPartyState').value,
+        state_code: document.getElementById('newPartyState').options[document.getElementById('newPartyState').selectedIndex].dataset.code,
+        pincode: document.getElementById('newPartyPincode').value,
+        phone: document.getElementById('newPartyPhone').value
+    };
+    
+    const res = await fetch('/ledger/api/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+        selectLedger(data.id, data.name, data.state);
+        closePartyCreate();
+    } else {
+        alert(data.error || 'Failed to create party');
+    }
+}
+
+const _portal = document.getElementById('itemDropPortal');
+async function searchItem(input, rowId) {
+  const q = input.value.trim();
+  if (q.length < 1) { _portal.style.display = 'none'; return; }
+  
+  if (q.length >= 4) {
+      try {
+          const sRes = await fetch(`/inventory/api/check-serial/${encodeURIComponent(q)}`);
+          if (sRes.ok) {
+              const sData = await sRes.json();
+              if (sData.success) {
+                  selectItem(rowId, sData);
+                  const row = document.getElementById('row-'+rowId);
+                  const curSns = row.querySelector('.item-serials').value;
+                  const sns = curSns ? curSns.split(',') : [];
+                  if (!sns.includes(sData.serial_number)) {
+                      sns.push(sData.serial_number);
+                      row.querySelector('.item-serials').value = sns.join(',');
+                      updateSNCount(rowId);
+                  }
+                  input.value = sData.name;
+                  _portal.style.display = 'none';
+                  return;
+              }
+          }
+      } catch (err) { console.error("Serial check failed", err); }
+  }
+
+  const res = await fetch(`/inventory/api/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  _portal.innerHTML = data.map(item => {
+    const isPurch = VTYPE === 'Purchase';
+    let rate = isPurch ? item.purchase_rate : item.sale_rate;
+    let label = isPurch ? 'Purch Rate' : 'Sale Rate';
+    if (!isPurch && (!rate || rate === 0) && item.mrp > 0) { rate = item.mrp; label = 'MRP'; }
+    
+    const stockColor = item.current_stock < 0 ? 'var(--m-red)' : 'var(--m-accent)';
+    
+    return `
+      <div class="m-ac-row" tabindex="0" onclick="selectItem(${rowId}, ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+        <div>
+          <div style="font-weight:700; font-size: 14px;">${item.name}</div>
+          <div style="font-size:10px; color:var(--m-gray); margin-top: 2px;">HSN: ${item.hsn || '—'} | GST: ${item.gst_rate}%</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px; color:${stockColor}; font-weight:700;">Stock: ${item.current_stock} ${item.unit || ''}</div>
+          <div style="font-size:11px; color:var(--m-text); font-weight:700; margin-top: 2px;">${label}: ₹${rate.toLocaleString('en-IN', {minimumFractionDigits:2})}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  _portal.style.display = 'block';
+  if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+  const r = input.getBoundingClientRect();
+  const parentRect = _portal.offsetParent.getBoundingClientRect();
+  
+  _portal.style.top = (r.bottom - parentRect.top) + 'px';
+  _portal.style.left = (r.left - parentRect.left) + 'px';
+  _portal.style.width = r.width + 'px';
+}
+
+function selectItem(rowId, item) {
+  const row = document.getElementById('row-' + rowId);
+  row.querySelector('.item-desc').value = item.name;
+  row.querySelector('.item-id').value = item.id;
+  row.querySelector('.item-hsn').value = item.hsn || '';
+  let rate = (VTYPE === 'Purchase' ? item.purchase_rate : item.sale_rate) || 0;
+  if (VTYPE === 'Sales' && rate === 0 && item.mrp > 0) rate = item.mrp;
+  
+  row.querySelector('.item-rate').value = rate;
+  row.querySelector('.item-unit').value = item.unit || '';
+  row.querySelector('.item-gst').value = item.gst_rate || 18;
+  _portal.style.display = 'none';
+  calcRow(rowId);
+  row.querySelector('.item-qty').focus();
+}
+
+function itemKD(e, n) {
+  if (e.key === 'Enter') { e.preventDefault(); addRow(); }
+  if (e.key === 'ArrowDown' && e.altKey) { e.preventDefault(); addRow(); }
+}
+
+let hsnTimer;
+async function lookupHSN(input, n) {
+  clearTimeout(hsnTimer);
+  const code = input.value.trim();
+  if (code.length < 4) return;
+  
+  hsnTimer = setTimeout(async () => {
+    try {
+      input.style.borderColor = 'var(--m-accent)';
+      const res = await fetch(`/gst/api/hsn/${code}`);
+      const data = await res.json();
+      if (data.success) {
+        const row = document.getElementById('row-' + n);
+        const gstSelect = row.querySelector('.item-gst');
+        const descInput = row.querySelector('.item-desc');
+        
+        if (!descInput.value && data.description) {
+           descInput.value = data.description;
+        }
+        
+        const rate = parseFloat(data.rate);
+        let found = false;
+        for (let opt of gstSelect.options) {
+          if (parseFloat(opt.value) === rate) {
+            gstSelect.value = opt.value;
+            found = true; break;
+          }
+        }
+        if (!found) {
+          const opt = new Option(rate + '%', rate);
+          gstSelect.add(opt);
+          gstSelect.value = rate;
+        }
+        
+        calcRow(n);
+        input.style.borderColor = 'var(--m-green)';
+        setTimeout(() => { input.style.borderColor = ''; }, 1500);
+      } else {
+        input.style.borderColor = 'rgba(255,255,255,0.1)';
+      }
+    } catch (e) {
+      input.style.borderColor = '';
+    }
+  }, 500);
+}
+
+async function saveVoucher() {
+  const items = [];
+  document.querySelectorAll('#itemsBody tr').forEach(row => {
+    const desc = row.querySelector('.item-desc').value;
+    if (!desc) return;
+    items.push({
+      stock_item_id: row.querySelector('.item-id').value||null, description: desc,
+      hsn_code: row.querySelector('.item-hsn').value,
+      qty: parseFloat(row.querySelector('.item-qty').value)||0,
+      unit: row.querySelector('.item-unit').value,
+      rate: parseFloat(row.querySelector('.item-rate').value)||0,
+      discount_pct: parseFloat(row.querySelector('.item-disc').value)||0,
+      gst_rate: parseFloat(row.querySelector('.item-gst').value)||0,
+      serial_numbers: row.querySelector('.item-serials').value.split(',').filter(x => x.trim())
+    });
+  });
+  if (!document.getElementById('partyId').value) { alert('Please select a Party / Ledger'); return; }
+  const same = document.getElementById('sameAsBilling').checked;
+  const payload = {
+    date: document.getElementById('vDate').value,
+    ref_number: document.getElementById('refNumber').value,
+    party_ledger_id: document.getElementById('partyId').value,
+    is_igst: isIGST,
+    payment_mode: document.getElementById('paymentMode').value,
+    payment_ledger_id: document.getElementById('paymentLedgerId').value,
+    narration: document.getElementById('narration').value,
+    eway_bill_no: document.getElementById('ewayBillNo').value,
+    vehicle_no: document.getElementById('vehicleNo').value,
+    transporter_name: document.getElementById('transporterName').value,
+    reverse_charge: document.getElementById('reverseCharge').checked,
+    tds_percent: parseFloat(document.getElementById('tdsPercent').value || 0),
+    billing_address: window.currentPartyBilling ? window.currentPartyBilling.address : '',
+    billing_city: window.currentPartyBilling ? window.currentPartyBilling.city : '',
+    billing_state: window.currentPartyBilling ? window.currentPartyBilling.state : '',
+    billing_pincode: window.currentPartyBilling ? window.currentPartyBilling.pincode : '',
+    billing_gstin: window.currentPartyBilling ? window.currentPartyBilling.gstin : '',
+    shipping_address: same ? (window.currentPartyBilling ? window.currentPartyBilling.address : '') : document.getElementById('shippingAddress').value,
+    shipping_city: same ? (window.currentPartyBilling ? window.currentPartyBilling.city : '') : document.getElementById('shippingCity').value,
+    shipping_state: same ? (window.currentPartyBilling ? window.currentPartyBilling.state : '') : document.getElementById('shippingState').value,
+    shipping_pincode: same ? (window.currentPartyBilling ? window.currentPartyBilling.pincode : '') : document.getElementById('shippingPincode').value,
+    shipping_gstin: window.currentPartyBilling ? window.currentPartyBilling.gstin : '',
+    items
+  };
+  const url = EDIT_MODE ? `/voucher/edit/${VOUCHER_ID}` : `/voucher/create/${VTYPE}`;
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const data = await res.json();
+
+  if (data.success) window.location = `/voucher/view/${data.id}`;
+  else alert(data.error || 'Failed to save');
+}
+
+function toggleBankSelect() {
+    const mode = document.getElementById('paymentMode').value;
+    const grp = document.getElementById('bankSelectGroup');
+    const select = document.getElementById('paymentLedgerId');
+    
+    if (mode === 'Credit') {
+        grp.style.display = 'none';
+    } else {
+        grp.style.display = 'block';
+        const options = [...select.options];
+        let firstMatch = null;
+        
+        options.forEach(opt => {
+            const g = opt.getAttribute('data-group');
+            let show = false;
+            if (mode === 'Cash') show = (g === 'Cash-in-Hand');
+            else if (mode === 'Bank') show = (g === 'Bank Accounts');
+            
+            opt.style.display = show ? 'block' : 'none';
+            opt.disabled = !show;
+            if (show && !firstMatch) firstMatch = opt;
+        });
+        
+        if (firstMatch && (!select.value || select.selectedOptions[0].disabled)) {
+            select.value = firstMatch.value;
+        }
+    }
+    if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+}
+toggleBankSelect();
+
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (e.altKey && k === 'r') { e.preventDefault(); addRow(); }
+});
+
+// Init
+if (EDIT_MODE) {
+  document.getElementById('ledgerEditLink').style.display = 'block';
+  {% if voucher %}{% for item in voucher.items %}
+  addRow({ 
+    id:"{{ item.stock_item_id or '' }}", 
+    description:`{{ item.description or '' }}`, 
+    hsn:"{{ item.hsn_code or '' }}", 
+    qty:{{ item.qty or 1 }}, 
+    unit:"{{ item.unit or '' }}", 
+    rate:{{ item.rate or 0 }}, 
+    disc:{{ item.discount_pct or 0 }}, 
+    gst:{{ item.gst_rate or 18 }},
+    serial_numbers: [{% for sn in item.serial_numbers %}"{{ sn.serial_number }}",{% endfor %}]
+  });
+  updateSNCount(rowCount);
+  {% endfor %}{% endif %}
+} else {
+  addRow();
+}
+document.getElementById('partySearch').focus();
+updateGSTColumns();
+function autoDetectGST() {
+  const pos = document.getElementById('placeOfSupply').value;
+  const homeState = "{{ company.state }}";
+  const gstType = document.getElementById('gstType');
+  
+  if (!pos || pos.trim() === homeState.trim()) {
+    gstType.value = 'intrastate';
+  } else {
+    gstType.value = 'interstate';
+  }
+  updateGSTColumns();
+}
+
+function toggleLogistics() {
+    const content = document.getElementById('logisticsContent');
+    const icon = document.getElementById('logisticsIcon');
+    const isHidden = content.style.display === 'none';
+    content.style.display = isHidden ? 'block' : 'none';
+    icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    if (typeof IvyNav !== 'undefined') IvyNav.refresh();
+}
+
+// Initial call to set defaults
+document.addEventListener('DOMContentLoaded', () => {
+  // Auto-expand logistics if data exists
+  const hasData = document.getElementById('ewayBillNo').value || 
+                  document.getElementById('vehicleNo').value || 
+                  document.getElementById('transporterName').value || 
+                  document.getElementById('reverseCharge').checked || 
+                  parseFloat(document.getElementById('tdsPercent').value || 0) > 0;
+  if (hasData) toggleLogistics();
+
+  const partyId = document.getElementById('partyId').value;
+  if (partyId) {
+      fetch(`/ledger/api/details/${partyId}`).then(res => res.json()).then(data => {
+          const rcmContainer = document.getElementById('rcmContainer');
+          const rcmCheckbox = document.getElementById('reverseCharge');
+          if (data.gstin && data.gstin.trim() !== '') {
+              if (rcmCheckbox) rcmCheckbox.checked = false;
+              if (rcmContainer) rcmContainer.style.display = 'none';
+              calcTotals();
+          } else {
+              if (rcmContainer) rcmContainer.style.display = 'flex';
+          }
+      }).catch(err => console.error(err));
+  }
+
+  if (!document.getElementById('partyId').value) {
+    // Only for new vouchers
+    autoDetectGST();
+  }
+});
+function applyDefaultTerms() {
+    const narr = document.getElementById('narration');
+    const terms = `{{ company.terms|replace('\n', '\\n')|safe }}`;
+    if (narr.value) narr.value += "\n";
+    narr.value += terms;
+}
+
+function openSerialModal(rowId) {
+    const row = document.getElementById('row-' + rowId);
+    const itemId = row.querySelector('.item-id').value;
+    const sns = row.querySelector('.item-serials').value;
+    
+    document.getElementById('modalSns').value = sns.split(',').filter(x => x).join('\n');
+    document.getElementById('modalRowId').value = rowId;
+    
+    modalTrigger = document.activeElement;
+    document.getElementById('serialModal').style.display = 'flex';
+    document.getElementById('modalSns').focus();
+    
+    // For Sales, show available serials
+    if (VTYPE === 'Sales' && itemId) {
+        document.getElementById('availableSnsSection').style.display = 'block';
+        fetch(`/inventory/api/stock-item-serials/${itemId}`)
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('availableSnsList');
+                list.innerHTML = data.map(sn => {
+                    const isSelected = sns.split(',').includes(sn);
+                    return `<span class="sn-badge ${isSelected ? 'selected' : ''}" 
+                                  tabindex="0"
+                                  onclick="toggleModalSN('${sn}')" 
+                                  onkeydown="handleSNKeyDown(event, this, '${sn}')"
+                                  style="cursor:pointer; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--m-border); font-size: 10px; background: ${isSelected ? 'var(--m-accent-muted)' : 'transparent'}; color: ${isSelected ? 'var(--m-accent)' : 'inherit'}; outline: none;">
+                                  ${sn}
+                            </span>`;
+                }).join('');
+                if (data.length === 0) {
+                    list.innerHTML = '<div style="color:var(--m-gray); font-size: 10px;">No available serials in stock.</div>';
+                } else {
+                    // Focus first badge if available to enable immediate keyboard selection
+                    const firstBadge = list.querySelector('.sn-badge');
+                    if (firstBadge) firstBadge.focus();
+                }
+            });
+    } else {
+        document.getElementById('availableSnsSection').style.display = 'none';
+    }
+}
+
+function handleSNKeyDown(event, el, sn) {
+    if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        toggleModalSN(sn);
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        const next = el.nextElementSibling;
+        if (next && next.classList.contains('sn-badge')) {
+            next.focus();
+        }
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const prev = el.previousElementSibling;
+        if (prev && prev.classList.contains('sn-badge')) {
+            prev.focus();
+        }
+    }
+}
+
+function toggleModalSN(sn) {
+    const area = document.getElementById('modalSns');
+    let current = area.value.split('\n').filter(x => x.trim());
+    if (current.includes(sn)) {
+        current = current.filter(x => x !== sn);
+    } else {
+        current.push(sn);
+    }
+    area.value = current.join('\n');
+    
+    // Refresh badges
+    const badges = document.querySelectorAll('#availableSnsList .sn-badge');
+    badges.forEach(b => {
+        const bSn = b.textContent.trim();
+        const selected = current.includes(bSn);
+        b.style.background = selected ? 'var(--m-accent-muted)' : 'transparent';
+        b.style.color = selected ? 'var(--m-accent)' : 'inherit';
+    });
+}
+
+function closeSerialModal() {
+    document.getElementById('serialModal').style.display = 'none';
+    if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; }
+}
+
+function saveSerialsFromModal() {
+    const rowId = document.getElementById('modalRowId').value;
+    const text = document.getElementById('modalSns').value;
+    const sns = text.split('\n').map(s => s.trim()).filter(s => s);
+    const row = document.getElementById('row-' + rowId);
+    row.querySelector('.item-serials').value = sns.join(',');
+    
+    // Auto-update qty if many serials entered
+    if (sns.length > 0) {
+        row.querySelector('.item-qty').value = sns.length;
+        calcRow(rowId);
+    }
+    
+    updateSNCount(rowId);
+    closeSerialModal();
+}
+
+function updateSNCount(rowId) {
+    const row = document.getElementById('row-' + rowId);
+    if (!row) return;
+    const sns = row.querySelector('.item-serials').value.split(',').filter(x => x.trim());
+    const badge = row.querySelector('.sn-count');
+    if (badge) badge.textContent = sns.length > 0 ? `(${sns.length})` : '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Automatically focus the primary entry fields to prioritize keyboard flow
+    setTimeout(() => {
+        const partySearch = document.getElementById('partySearch');
+        if (partySearch && !partySearch.value) {
+            partySearch.focus();
+        } else {
+            // If editing or party is pre-filled, try to focus the first item row
+            const firstItemDesc = document.querySelector('.item-desc');
+            if (firstItemDesc) {
+                firstItemDesc.focus();
+            } else if (partySearch) {
+                partySearch.focus();
+            }
+        }
+    }, 100);
+});
+updateGSTColumns();
+</script>
+{% endblock %}

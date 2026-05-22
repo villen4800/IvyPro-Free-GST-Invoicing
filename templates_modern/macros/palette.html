@@ -1,0 +1,86 @@
+{% macro palette() %}
+<div class="m-modal-overlay" id="paletteOverlay" onclick="if(event.target===this) togglePalette(false)">
+  <div class="m-palette">
+    <div class="m-palette-search">
+      <input type="text" id="paletteInput" class="m-palette-input" placeholder="Go to feature or report..." autocomplete="off">
+    </div>
+    <div class="m-palette-results" id="paletteResults">
+      <!-- Dynamic results -->
+    </div>
+  </div>
+</div>
+
+<script>
+let paletteOpen = false;
+let selectedIdx = 0;
+let filteredCommands = [];
+
+function togglePalette(show) {
+  const overlay = document.getElementById('paletteOverlay');
+  const input = document.getElementById('paletteInput');
+  overlay.style.display = show ? 'flex' : 'none';
+  paletteOpen = show;
+  if(show) {
+    input.value = '';
+    input.focus();
+    renderResults('');
+  }
+}
+
+function renderResults(q) {
+  const results = document.getElementById('paletteResults');
+  q = q.toLowerCase();
+  filteredCommands = commands.filter(c => 
+    c.n.toLowerCase().includes(q) || c.g.toLowerCase().includes(q)
+  );
+  
+  if(filteredCommands.length === 0) {
+    results.innerHTML = '<div style="padding:40px; text-align:center; color:var(--m-gray);">No results found</div>';
+    return;
+  }
+
+  let html = '';
+  let curGroup = '';
+  filteredCommands.forEach((c, idx) => {
+    if(c.g !== curGroup) {
+      curGroup = c.g;
+      html += `<div class="m-palette-group">${curGroup}</div>`;
+    }
+    const isSel = idx === selectedIdx;
+    html += `
+      <div class="m-palette-item ${isSel ? 'selected' : ''}" onclick="window.location.href='${c.u}'">
+        <div class="m-palette-item-icon">${c.i}</div>
+        <div class="m-palette-item-name">${c.n}</div>
+        ${c.h ? `<div class="m-palette-item-hint">${c.h}</div>` : ''}
+      </div>
+    `;
+  });
+  results.innerHTML = html;
+  
+  if(selectedIdx >= filteredCommands.length) selectedIdx = 0;
+  const selEl = results.querySelector('.m-palette-item.selected');
+  if(selEl) selEl.scrollIntoView({ block: 'nearest' });
+}
+
+document.getElementById('paletteInput').addEventListener('input', (e) => {
+  selectedIdx = 0;
+  renderResults(e.target.value);
+});
+
+document.getElementById('paletteInput').addEventListener('keydown', (e) => {
+  if(e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedIdx = (selectedIdx + 1) % filteredCommands.length;
+    renderResults(e.target.value);
+  } else if(e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedIdx = (selectedIdx - 1 + filteredCommands.length) % filteredCommands.length;
+    renderResults(e.target.value);
+  } else if(e.key === 'Enter') {
+    if(filteredCommands[selectedIdx]) {
+      window.location.href = filteredCommands[selectedIdx].u;
+    }
+  }
+});
+</script>
+{% endmacro %}
