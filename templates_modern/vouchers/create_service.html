@@ -20,10 +20,37 @@
   .m-meta-item { display: flex; flex-direction: column; gap: 5px; }
   .m-meta-label { font-size: 10px; color: var(--m-gray); text-transform: uppercase; font-weight: 700; }
   
+  .m-service-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 25px;
+  }
+
   .m-service-footer { 
     position: sticky; bottom: 30px; background: var(--m-panel); padding: 20px 30px; border-radius: 12px; 
     border: 1px solid var(--m-border); display: flex; justify-content: space-between; align-items: center;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100;
+  }
+
+  @media (max-width: 768px) {
+    .m-service-meta {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .m-service-grid {
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+    .m-service-footer {
+      flex-direction: column;
+      gap: 15px;
+      align-items: stretch;
+      padding: 15px 20px;
+    }
+    .m-service-footer .m-btn {
+      width: 100%;
+      justify-content: center;
+    }
   }
 </style>
 {% endblock %}
@@ -48,7 +75,7 @@
 
 <div class="m-service-container">
   <div class="m-service-header">
-    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 25px;">
+    <div class="m-service-grid">
       <div>
         <label class="m-entry-label">Client / Customer</label>
         <div style="position: relative;">
