@@ -36,9 +36,27 @@ option:hover { background-color: var(--m-accent) !important; color: #000 !import
 }
 .m-grand-total { font-size: 28px; font-weight: 900; color: var(--m-accent); letter-spacing: -1px; }
 
-
-
 .bank-details-box { background: var(--m-bg); border: 1px solid var(--m-border); border-top: none; padding: 15px; margin: 0 10px 10px; border-radius: 0 0 8px 8px; }
+
+.bank-alloc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+@media (max-width: 768px) {
+  .m-footer-bar { 
+    flex-direction: column; gap: 15px; padding: 15px; align-items: stretch; 
+    margin: 20px -20px -80px; width: calc(100% + 40px); 
+  }
+  .m-footer-bar > div:first-child { flex-direction: column; gap: 10px; align-items: stretch !important; }
+  .m-footer-bar > div:first-child > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .m-footer-bar .m-btn { width: 100%; justify-content: center; }
+  .bank-alloc-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
 </style>
 {% endblock %}
 
@@ -176,7 +194,7 @@ function addEntry(data={}) {
     <td colspan="4">
       <div class="bank-details-box">
         <div class="m-entry-label" style="margin-bottom: 10px; color: var(--m-accent);">Bank Allocation</div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+        <div class="bank-alloc-grid">
           <div class="m-entry-item"><label class="m-entry-label">Type</label><select class="m-input entry-bank-tx-type"><option>Others</option><option>Cheque</option><option>NEFT</option><option>UPI</option></select></div>
           <div class="m-entry-item"><label class="m-entry-label">Inst No</label><input class="m-input entry-inst-no" placeholder="—"></div>
           <div class="m-entry-item"><label class="m-entry-label">Date</label><input class="m-input entry-inst-date" type="date" value="${document.getElementById('vDate').value}"></div>
