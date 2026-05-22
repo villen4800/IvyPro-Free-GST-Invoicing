@@ -1,0 +1,773 @@
+{% extends "base.html" %}
+{% block title %}{{ voucher.voucher_number }}{% endblock %}
+{% block page_title %}{{ voucher.voucher_type }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .m-view-grid {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 30px;
+  }
+
+  @media (max-width: 1024px) {
+    .m-view-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .m-preview-card {
+    background: var(--m-panel);
+    color: var(--m-text);
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    min-height: 800px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid var(--m-border);
+  }
+
+  @media (max-width: 768px) {
+    .m-preview-card {
+      padding: 12px !important;
+      min-height: auto;
+      width: calc(100% - 10px) !important;
+      margin: 0 5px 20px !important;
+    }
+
+    .m-preview-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
+    }
+
+    .m-preview-header div:last-child {
+      text-align: left !important;
+    }
+
+    .m-bill-info {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 15px !important;
+    }
+
+    .m-bill-info div:last-child {
+      text-align: left !important;
+    }
+
+    .m-total-sec {
+      width: 100% !important;
+      margin-top: 20px;
+      float: none !important;
+    }
+
+    .m-total-line {
+      display: flex !important;
+      justify-content: space-between !important;
+      width: 100% !important;
+      font-size: 13px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--m-border);
+      padding: 0 15px 5px 0 !important;
+    }
+
+    .m-total-line span:last-child {
+      font-weight: 700;
+      color: var(--m-text);
+      text-align: right;
+    }
+
+    .m-total-line.grand {
+      font-size: 18px !important;
+      border-top: 2px solid var(--m-accent);
+      border-bottom: none;
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+
+    /* Accounting Impact Table Stack */
+    .m-impact-table thead {
+      display: none;
+    }
+
+    .m-impact-table,
+    .m-impact-table tbody,
+    .m-impact-table tr,
+    .m-impact-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .m-impact-table tr {
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--m-border);
+      padding-bottom: 10px;
+    }
+
+    .m-impact-table td {
+      border: none;
+      padding: 4px 0;
+      text-align: left !important;
+    }
+
+    .m-impact-table td::before {
+      content: attr(data-label);
+      font-size: 9px;
+      color: var(--m-gray);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .m-impact-table td[data-label="Debit"],
+    .m-impact-table td[data-label="Credit"] {
+      display: inline-block;
+      width: 45%;
+      padding-right: 15px;
+      box-sizing: border-box;
+    }
+  }
+
+  .m-preview-header {
+    border-bottom: 2px solid var(--m-border);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .m-preview-title {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    text-transform: uppercase;
+    color: var(--m-text);
+  }
+
+  @media (max-width: 768px) {
+    .m-preview-title {
+      font-size: 24px;
+    }
+  }
+
+  .m-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 30px;
+  }
+
+  .m-preview-table th {
+    border-bottom: 2px solid var(--m-accent);
+    padding: 10px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--m-gray);
+  }
+
+  .m-preview-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--m-border);
+    font-size: 13px;
+    color: var(--m-text);
+  }
+
+  .m-total-line {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+  }
+
+  .m-total-line.grand {
+    padding: 15px 0;
+    border-top: 2px solid var(--m-accent);
+    margin-top: 10px;
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--m-text);
+  }
+
+  .m-side-sec {
+    margin-bottom: 25px;
+  }
+
+  .m-side-label {
+    font-size: 10px;
+    color: var(--m-gray);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+
+  .m-side-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--m-text);
+    margin-bottom: 4px;
+  }
+
+  .m-impact-table {
+    min-width: 0 !important;
+  }
+
+  .m-invert-on-dark {
+    filter: invert(1);
+    mix-blend-mode: screen;
+  }
+
+  :root.light-theme .m-invert-on-dark {
+    filter: none;
+    mix-blend-mode: normal;
+  }
+
+  /* Sidebar dropdown adjustment */
+  .m-total-sec .m-dropdown {
+    width: 100%;
+  }
+  .m-total-sec .m-dropdown-content {
+    top: auto;
+    bottom: 100%;
+    margin-bottom: 5px;
+    width: 100%;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="m-view-grid">
+  <!-- LEFT: PREVIEW -->
+  <div class="m-preview-card">
+    <div class="m-preview-header"
+      style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--m-border); padding-bottom: 20px; margin-bottom: 30px;">
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+        {% if company.logo_path %}
+        <img src="{{ url_for('static', filename=company.logo_path.split('static/')[-1]) }}"
+          style="max-height: 80px; width: auto; border-radius: 4px;">
+        {% endif %}
+        <div>
+          <div style="font-size: 24px; font-weight: 900; color: var(--m-text); margin-bottom: 5px;">{{ company.name }}
+          </div>
+          <div style="font-size: 11px; color: var(--m-gray); max-width: 400px; line-height: 1.4;">
+            {{ company.address or '' }}
+            {% if company.city or company.state %}
+            <br>{{ company.city or '' }}{% if company.city and company.state %}, {% endif %}{{ company.state or '' }} {{
+            company.pincode or '' }}
+            {% endif %}
+            {% if company.phone or company.email %}
+            <br>{% if company.phone %}📞 {{ company.phone }}{% endif %} {% if company.email %} | ✉ {{ company.email }}{%
+            endif %}
+            {% endif %}
+          </div>
+          {% if current_company.enable_gst %}
+          <div style="font-size: 12px; font-weight: 700; margin-top: 5px; color: var(--m-text);">GSTIN: {{ company.gstin
+            or 'N/A' }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div class="m-preview-title">{{ voucher.voucher_type }}</div>
+        <div style="font-size: 18px; font-weight: 700; color: var(--m-text);">#{{ voucher.voucher_number }}</div>
+        <div style="font-size: 12px; color: var(--m-gray);">Date: {{ voucher.date.strftime('%d %b %Y') }}</div>
+      </div>
+    </div>
+
+    <div class="m-bill-info" style="display: flex; justify-content: space-between; margin-bottom: 40px;">
+      <div>
+        <div style="font-size: 10px; text-transform: uppercase; color: var(--m-gray); margin-bottom: 5px;">
+          {% if voucher.voucher_type == 'Purchase' %}Bill From / Supplier{% else %}Bill To / Customer{% endif %}
+        </div>
+        <div style="font-size: 16px; font-weight: 700; color: var(--m-text);">{{ voucher.party.name if voucher.party
+          else 'Cash/Walk-in' }}</div>
+        {% if voucher.party %}
+        {% if voucher.party.address %}<div style="font-size: 12px; color: var(--m-gray); max-width: 250px;">{{
+          voucher.party.address }}</div>{% endif %}
+        {% if voucher.party.gstin and current_company.enable_gst %}<div
+          style="font-size: 12px; font-weight: 600; margin-top: 4px; color: var(--m-accent);">GSTIN: {{
+          voucher.party.gstin }}</div>{% endif %}
+        {% endif %}
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 10px; text-transform: uppercase; color: var(--m-gray); margin-bottom: 5px;">Payment
+          Details</div>
+        <div style="font-size: 14px; font-weight: 600; color: var(--m-text);">
+          Mode: {{ voucher.payment_mode or 'Credit' }}
+          {% if voucher.payment_ledger_id and voucher.payment_mode != 'Credit' %}
+            <br><span style="font-size: 11px; color: var(--m-gray);">A/c: {{ voucher.payment_ledger.name }}</span>
+          {% endif %}
+          {% if (voucher.payment_mode or 'Credit')|lower == 'credit' and voucher.party and voucher.party.credit_days %}
+            <span style="font-size: 12px; color: var(--m-gray);">({{ voucher.party.credit_days }} Days)</span>
+          {% endif %}
+        </div>
+        {% if voucher.ref_number %}
+        <div style="font-size: 12px; color: var(--m-gray);">Ref: <a
+            href="{{ url_for('vouchers.view_by_number', num=voucher.ref_number) }}"
+            style="color: var(--m-accent); text-decoration: none; font-weight: 700;">{{ voucher.ref_number }} ↗</a>
+        </div>
+        {% endif %}
+
+        {% if current_company.enable_gst %}
+          {% if voucher.eway_bill_no %}
+          <div style="margin-top: 15px; text-align: right;">
+            <div
+              style="font-size: 10px; color: var(--m-accent); font-weight: 800; letter-spacing: 1px; margin-bottom: 5px;">
+              E-WAY BILL</div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--m-text); cursor: pointer;" onclick="promptEwayNumber({{ voucher.id }}, '{{ voucher.voucher_number }}', '{{ voucher.eway_bill_no }}')" title="Click to update e-Way Bill Number">
+              No: {{ voucher.eway_bill_no }} <i class="ri-edit-line" style="font-size: 11px; opacity: 0.7; margin-left: 2px;"></i>
+            </div>
+            {% if voucher.vehicle_no %}<div style="font-size: 11px; color: var(--m-gray);">Vehicle: {{ voucher.vehicle_no
+              }}</div>{% endif %}
+            {% if voucher.transporter_name %}<div style="font-size: 11px; color: var(--m-gray);">Transporter: {{
+              voucher.transporter_name }}</div>{% endif %}
+          </div>
+          {% elif voucher.voucher_type in ['Sales', 'Purchase', 'Credit Note', 'Debit Note'] and (voucher.total_amount or 0) >= 50000 %}
+          <div style="margin-top: 15px; text-align: right;">
+            <div
+              style="font-size: 10px; color: #ff9800; font-weight: 800; letter-spacing: 1px; margin-bottom: 5px;">
+              E-WAY BILL REQUIRED</div>
+            <a href="#" onclick="event.preventDefault(); promptEwayNumber({{ voucher.id }}, '{{ voucher.voucher_number }}', '')" style="font-size: 11px; color: #ff9800; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 3px;">
+              <i class="ri-add-line"></i> Add E-Way Bill No.
+            </a>
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if voucher.voucher_type in ['Sales', 'Purchase', 'Credit Note'] %}
+    <div style="width: 100%; overflow-x: auto; margin-top: 20px; border-bottom: 1px solid var(--m-border);">
+      <table class="m-preview-table" style="min-width: 450px;">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th>Description</th>
+            <th style="text-align: right; width: 60px;">Qty</th>
+            <th style="text-align: right; width: 90px;">Rate</th>
+            <th style="text-align: right; width: 110px;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in voucher.items %}
+          <tr>
+            <td style="color: var(--m-gray);">{{ loop.index }}</td>
+            <td>
+              <div style="font-weight: 600; color: var(--m-text);">{{ item.description if (item.description and
+                item.description != 'None') else (item.stock_item.name if item.stock_item else '—') }}</div>
+              {% if (item.hsn_code or (item.stock_item and item.stock_item.hsn_code)) and current_company.enable_gst %}
+              <div style="font-size: 10px; color: var(--m-gray);">HSN: {{ item.hsn_code or item.stock_item.hsn_code }}
+              </div>
+              {% endif %}
+              {% if item.serial_numbers %}
+              <div style="font-size: 11.5px; color: var(--m-gray); margin-top: 3px; font-weight: 700; line-height: 1.4;">
+                S/N: {{ item.serial_numbers|map(attribute='serial_number')|join(', ') }}
+              </div>
+              {% endif %}
+            </td>
+            <td style="text-align: right;">{{ "{:g}".format(item.qty) }} {{ item.unit if (item.unit and item.unit !=
+              'None') else (item.stock_item.unit.symbol if item.stock_item and item.stock_item.unit else '') }}</td>
+            <td style="text-align: right;">{{ "{:,.2f}".format(item.rate) }}</td>
+            <td style="text-align: right; font-weight: 700; color: var(--m-text);">{{
+              "{:,.2f}".format(item.total_amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <!-- OTHER VOUCHER TYPES: RECEIPT, JOURNAL, CONTRA, PAYMENT -->
+    <div style="width: 100%; overflow-x: auto; margin-top: 20px; border-bottom: 1px solid var(--m-border);">
+      <table class="m-preview-table" style="min-width: 450px;">
+        <thead>
+          <tr>
+            <th>Particulars</th>
+            <th style="text-align: right; width: 120px;">Debit</th>
+            <th style="text-align: right; width: 120px;">Credit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in voucher.ledger_entries %}
+          <tr>
+            <td>
+              <div style="font-weight: 600; color: var(--m-text);">{{ e.ledger.name }}</div>
+              {% if e.ledger.group and e.ledger.group.name == 'Bank Accounts' %}
+                <div style="font-size: 10px; color: var(--m-gray); margin-top: 3px; font-weight: 600;">
+                  {% if e.bank_tx_type %}<span style="color:var(--m-accent)">{{ e.bank_tx_type }}</span>{% endif %}
+                  {% if e.inst_no %} | No: {{ e.inst_no }}{% endif %}
+                  {% if e.inst_date %} | Date: {{ e.inst_date.strftime('%d-%m-%Y') }}{% endif %}
+                  {% if e.bank_name %}<br>Bank: {{ e.bank_name }}{% endif %}
+                </div>
+              {% endif %}
+              <div style="font-size: 10px; color: var(--m-gray);">{{ e.ledger.group.name if e.ledger.group else '' }}
+              </div>
+            </td>
+            <td style="text-align: right; color: var(--m-green);">{{ "{:,.2f}".format(e.debit) if e.debit else '—' }}
+            </td>
+            <td style="text-align: right; font-weight: 700; color: var(--m-red);">{{ "{:,.2f}".format(e.credit) if
+              e.credit else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; justify-content: flex-end; margin-top: 30px;">
+      <div class="m-total-sec" style="width: 250px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr class="m-total-row">
+            <td style="padding: 5px 0; color: var(--m-gray); font-size: 13px;">{% if current_company.enable_gst %}Taxable Value{% else %}Subtotal{% endif %}</td>
+            <td style="padding: 5px 0; text-align: right; font-weight: 700; color: var(--m-text); font-size: 13px;">₹{{
+              "{:,.2f}".format(voucher.taxable_amount or 0) }}</td>
+          </tr>
+          {% if current_company.enable_gst %}
+          {% if voucher.is_igst %}
+          <tr class="m-total-row">
+            <td style="padding: 5px 0; color: var(--m-gray); font-size: 13px;">IGST Total</td>
+            <td style="padding: 5px 0; text-align: right; font-weight: 700; color: var(--m-text); font-size: 13px;">₹{{
+              "{:,.2f}".format(voucher.igst_amount or 0) }}</td>
+          </tr>
+          {% else %}
+          <tr class="m-total-row">
+            <td style="padding: 5px 0; color: var(--m-gray); font-size: 13px;">CGST Total</td>
+            <td style="padding: 5px 0; text-align: right; font-weight: 700; color: var(--m-text); font-size: 13px;">₹{{
+              "{:,.2f}".format(voucher.cgst_amount or 0) }}</td>
+          </tr>
+          <tr class="m-total-row">
+            <td style="padding: 5px 0; color: var(--m-gray); font-size: 13px;">SGST Total</td>
+            <td style="padding: 5px 0; text-align: right; font-weight: 700; color: var(--m-text); font-size: 13px;">₹{{
+              "{:,.2f}".format(voucher.sgst_amount or 0) }}</td>
+          </tr>
+          {% endif %}
+          {% endif %}
+          {% if voucher.tds_amount %}
+          <tr class="m-total-row">
+            <td style="padding: 5px 0; color: var(--m-red); font-size: 13px;">TDS Deduction ({{ voucher.tds_percent }}%)
+            </td>
+            <td style="padding: 5px 0; text-align: right; font-weight: 700; color: var(--m-red); font-size: 13px;">- ₹{{
+              "{:,.2f}".format(voucher.tds_amount or 0) }}</td>
+          </tr>
+          {% endif %}
+          <tr class="m-total-row" style="border-top: 2px solid var(--m-accent);">
+            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; color: var(--m-accent);">TOTAL</td>
+            <td style="padding: 10px 0; text-align: right; font-size: 16px; font-weight: 900; color: var(--m-accent);">
+              ₹{{ "{:,.2f}".format(voucher.total_amount or 0) }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    {% if current_company.enable_gst and company.show_gst_summary and voucher.voucher_type in ['Sales', 'Purchase'] and hsn_summary %}
+    <div style="margin-top: 40px;">
+      <div
+        style="font-size: 11px; font-weight: 900; color: var(--m-accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;">
+        GST Summary Breakdown</div>
+      <table class="m-preview-table" style="font-size: 11px; border-top: 1px solid var(--m-border);">
+        <thead>
+          <tr>
+            <th>HSN/SAC</th>
+            <th style="text-align: right;">Taxable</th>
+            <th style="text-align: right;">Tax Rate</th>
+            <th style="text-align: right;">GST Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vals in hsn_summary %}
+          <tr>
+            <td style="color: var(--m-gray);">{{ vals.hsn }}</td>
+            <td style="text-align: right;">₹{{ "{:,.2f}".format(vals.taxable) }}</td>
+            <td style="text-align: right;">{{ vals.rate }}%</td>
+            <td style="text-align: right; font-weight: 700; color: var(--m-text);">₹{{ "{:,.2f}".format(vals.cgst +
+              vals.sgst + vals.igst) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div
+      style="margin-top: 50px; border: 1px solid var(--m-border); border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.2);">
+      <div class="m-grid-1-1" style="gap: 0;">
+
+        <!-- Left half: Bank & QR -->
+        <div
+          style="display: flex; justify-content: space-between; padding: 10px 15px; border-right: 1px solid var(--m-border);">
+          <div>
+            <div
+              style="font-size: 10px; color: var(--m-gray); text-transform: uppercase; font-weight: 700; margin-bottom: 5px;">
+              Bank Details</div>
+            <div style="font-size: 11px; color: var(--m-text); line-height: 1.4;">
+              {% if company.bank_name %}<b>Bank:</b> {{ company.bank_name }}<br>{% endif %}
+              {% if company.bank_account %}<b>A/C:</b> {{ company.bank_account }}<br>{% endif %}
+              {% if company.bank_ifsc %}<b>IFSC:</b> {{ company.bank_ifsc }}<br>{% endif %}
+              {% if company.upi_id %}<b>UPI ID:</b> {{ company.upi_id }}{% endif %}
+            </div>
+          </div>
+          <div class="m-qr-container" style="display: flex; gap: 10px;">
+            {% if company.upi_id and company.show_upi_qr %}
+            <div style="text-align: center;">
+              <img src="/voucher/qr/upi/{{ voucher.id }}" class="m-invert-on-dark"
+                style="width: 55px; height: 55px; border: 1px solid var(--m-border); border-radius: 4px;">
+              <div style="font-size: 7px; color: var(--m-gray); margin-top: 2px; font-weight: 700;">PAYMENT QR</div>
+            </div>
+            {% endif %}
+            {% if company.show_invoice_qr and current_company.enable_gst %}
+            <div style="text-align: center;">
+              <img src="/voucher/qr/invoice/{{ voucher.id }}" class="m-invert-on-dark"
+                style="width: 55px; height: 55px; border: 1px solid var(--m-border); border-radius: 4px;">
+              <div style="font-size: 7px; color: var(--m-gray); margin-top: 2px; font-weight: 700;">INVOICE QR</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Right half: Terms & Signature -->
+        <div style="display: flex; justify-content: space-between; padding: 10px 15px;">
+          <div style="flex: 1; padding-right: 15px;">
+            <div
+              style="font-size: 10px; color: var(--m-gray); text-transform: uppercase; font-weight: 700; margin-bottom: 5px;">
+              Terms & Conditions</div>
+            <div style="font-size: 10px; color: var(--m-gray); line-height: 1.4;">
+              {% if company.terms %}
+              {{ company.terms|replace('\n', '<br>')|safe }}
+              {% else %}
+              1. Goods once sold will not be taken back.<br>
+              2. Interest @18% p.a. on overdue amounts.<br>
+              3. Subject to {{ (company.city or 'LOCAL')|upper }} jurisdiction only.<br>
+              4. E. & O.E.
+              {% endif %}
+            </div>
+          </div>
+          <div
+            style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; min-width: 130px;">
+            {% if company.signature_path %}
+            <img src="{{ url_for('static', filename=company.signature_path.split('static/')[-1]) }}"
+              class="m-invert-on-dark" style="max-height: 35px;">
+            {% else %}
+            <div style="height: 35px;"></div>
+            {% endif %}
+            <div style="margin-top: 5px;">
+              <div style="font-size: 8px; color: var(--m-gray); text-transform: uppercase; font-weight: 700;">Authorized
+                Signatory</div>
+              <div style="font-size: 11px; font-weight: 900; margin-top: 2px; color: var(--m-text);">{{ company.name }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {% if voucher.narration %}
+    <div
+      style="margin-top: 40px; padding: 15px; border-left: 4px solid var(--m-border); background: rgba(255,255,255,0.02); font-size: 12px; color: var(--m-gray);">
+      <b
+        style="color: var(--m-text); text-transform: uppercase; font-size: 10px; letter-spacing: 1px;">Narration:</b><br>{{
+      voucher.narration }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- RIGHT: ACTIONS -->
+  <div>
+    <div class="m-card">
+      <div class="m-card-header"><span class="m-card-title">Voucher Actions</span></div>
+      <div class="m-card-body" style="display: flex; flex-direction: column; gap: 10px;">
+        {% if voucher.voucher_type not in ['Contra', 'Journal'] %}
+        <a href="{{ url_for('vouchers.pdf', id=voucher.id) }}" target="_blank" class="m-btn m-btn-accent" id="btnPdf"
+          style="width: 100%;"><i class="ri-file-pdf-line"></i> View PDF (Alt+P)</a>
+        {% endif %}
+
+        {% if voucher.voucher_type == 'Sales' and voucher.payment_mode|lower == 'credit' %}
+          {% if cash_bank_ledgers|length > 1 %}
+          <div class="m-dropdown" style="width: 100%;">
+            <button class="m-btn m-btn-outline" style="width: 100%; border-color: var(--m-green); color: var(--m-green);">
+              <i class="ri-money-dollar-circle-line"></i> Record Receipt ▾
+            </button>
+            <div class="m-dropdown-content" style="width: 100%; right: 0;">
+              <div class="m-dd-label">Select Account</div>
+              {% for l in cash_bank_ledgers %}
+                <a href="{{ url_for('vouchers.quick_receipt', id=voucher.id, ledger_id=l.id) }}" class="m-dropdown-item">
+                  <i class="ri-wallet-3-line"></i> {{ l.name }}
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <a href="{{ url_for('vouchers.quick_receipt', id=voucher.id) }}" class="m-btn m-btn-outline"
+            style="width: 100%; border-color: var(--m-green); color: var(--m-green);">
+            <i class="ri-money-dollar-circle-line"></i> Record Receipt
+          </a>
+          {% endif %}
+        {% elif voucher.voucher_type == 'Purchase' and voucher.payment_mode|lower == 'credit' %}
+          {% if cash_bank_ledgers|length > 1 %}
+          <div class="m-dropdown" style="width: 100%;">
+            <button class="m-btn m-btn-outline" style="width: 100%; border-color: var(--m-red); color: var(--m-red);">
+              <i class="ri-bank-card-line"></i> Record Payment ▾
+            </button>
+            <div class="m-dropdown-content" style="width: 100%; right: 0;">
+              <div class="m-dd-label">Select Account</div>
+              {% for l in cash_bank_ledgers %}
+                <a href="{{ url_for('vouchers.quick_payment', id=voucher.id, ledger_id=l.id) }}" class="m-dropdown-item">
+                  <i class="ri-bank-line"></i> {{ l.name }}
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <a href="{{ url_for('vouchers.quick_payment', id=voucher.id) }}" class="m-btn m-btn-outline"
+            style="width: 100%; border-color: var(--m-red); color: var(--m-red);">
+            <i class="ri-bank-card-line"></i> Record Payment
+          </a>
+          {% endif %}
+        {% endif %}
+
+        {% if linked_invoice %}
+        <a href="{{ url_for('vouchers.view', id=linked_invoice.id) }}" class="m-btn m-btn-outline"
+          style="width: 100%; border-color: var(--m-accent); color: var(--m-accent);">
+          <i class="ri-links-line"></i> View Invoice ({{ linked_invoice.voucher_number }})
+        </a>
+        {% endif %}
+        {% if linked_receipt %}
+        <a href="{{ url_for('vouchers.view', id=linked_receipt.id) }}" class="m-btn m-btn-outline"
+          style="width: 100%; border-color: var(--m-green); color: var(--m-green);">
+          <i class="ri-links-line"></i> View Receipt ({{ linked_receipt.voucher_number }})
+        </a>
+        {% endif %}
+
+        {% if voucher.voucher_type not in ['Contra', 'Journal'] %}
+        <a href="{{ url_for('vouchers.send_whatsapp', id=voucher.id) }}" target="_blank" class="m-btn m-btn-outline" id="btnWhatsApp"
+          style="width: 100%; color: #25D366; border-color: #25D366;"><i class="ri-whatsapp-line"></i> WhatsApp (Alt+W)</a>
+        {% endif %}
+
+        {% if voucher.voucher_type in ['Sales', 'Purchase', 'Credit Note', 'Debit Note'] and (voucher.total_amount or 0) >= 50000 and current_company.enable_gst %}
+        <a href="{{ url_for('gst.eway_bill_json_single', voucher_id=voucher.id) }}" class="m-btn m-btn-outline"
+          style="width: 100%; color: #ff9800; border-color: #ff9800;"><i class="ri-truck-line"></i> e-Way Bill JSON</a>
+        <button type="button" class="m-btn m-btn-outline" onclick="promptEwayNumber({{ voucher.id }}, '{{ voucher.voucher_number }}', '{{ voucher.eway_bill_no or '' }}')"
+          style="width: 100%; color: #ff9800; border-color: #ff9800; justify-content: center; gap: 5px;">
+          <i class="ri-edit-box-line"></i> {% if voucher.eway_bill_no %}Update E-Way Bill No.{% else %}Add E-Way Bill No.{% endif %}
+        </button>
+        {% endif %}
+
+        <a href="{{ url_for('vouchers.cancel', id=voucher.id) }}" class="m-btn m-btn-outline" id="btnDelete"
+          style="width: 100%; color: var(--m-red); border-color: var(--m-red);"
+          onclick="return confirm('Permanently delete this voucher?')"><i class="ri-delete-bin-line"></i> Delete (Alt+X)</a>
+        <a href="{{ url_for('vouchers.edit', id=voucher.id) }}" class="m-btn m-btn-outline" id="btnEdit" style="width: 100%;"><i
+            class="ri-edit-line"></i> Edit Voucher (Alt+E)</a>
+        <a href="{{ url_for('vouchers.duplicate', id=voucher.id) }}" class="m-btn m-btn-outline" id="btnDuplicate" style="width: 100%;"><i
+            class="ri-file-copy-line"></i> Duplicate (Alt+D)</a>
+        <a href="{{ url_for('vouchers.list_vouchers', vtype=voucher.voucher_type) }}" class="m-btn m-btn-outline"
+          style="width: 100%;"><i class="ri-list-check"></i> Back to Register</a>
+      </div>
+    </div>
+
+    <div class="m-card">
+      <div class="m-card-header"><span class="m-card-title">Accounting Impact</span></div>
+      <div class="m-table-wrap" style="border: none; overflow: hidden;">
+        <table class="m-table m-impact-table" style="font-size: 11px;">
+          <thead>
+            <tr>
+              <th>Ledger</th>
+              <th style="text-align:right">Dr</th>
+              <th style="text-align:right">Cr</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in voucher.ledger_entries %}
+            {% set is_gst_entry = 'GST' in e.ledger.name.upper() %}
+            {% if current_company.enable_gst or not is_gst_entry %}
+            <tr>
+              <td data-label="Ledger" style="color: var(--m-text);">{{ e.ledger.name }}</td>
+              <td data-label="Debit" style="text-align:right; color: var(--m-green); font-weight: 700;">{{
+                "{:,.2f}".format(e.debit or 0) if e.debit else '₹0.00' }}</td>
+              <td data-label="Credit" style="text-align:right; color: var(--m-red); font-weight: 700;">{{
+                "{:,.2f}".format(e.credit or 0) if e.credit else '₹0.00' }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick EWB Update Modal -->
+<div id="ewbUpdateModal" class="m-modal-overlay" style="align-items: center; padding-top: 0; display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center;">
+  <div class="m-card" style="width: 400px; max-width: 95vw; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; box-shadow: 0 30px 100px rgba(0,0,0,0.5);">
+    <div class="m-card-header" style="padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--m-border);">
+      <span class="m-card-title" style="font-weight: 700;">Update e-Way Bill Number</span>
+      <span onclick="closeEwbModal()" style="cursor:pointer; font-size: 20px; color: var(--m-gray);">&times;</span>
+    </div>
+    <div class="m-card-body" style="padding: 25px;">
+      <div style="font-size: 11px; color: var(--m-gray); margin-bottom: 15px;">
+        Voucher: <strong id="modalVNum" style="color: var(--m-accent);"></strong>
+      </div>
+      <div class="m-form-group" style="margin-bottom: 20px;">
+        <label class="m-label" style="display: block; font-size: 11px; text-transform: uppercase; color: var(--m-gray); margin-bottom: 8px;">Enter 12-digit e-Way Bill Number</label>
+        <input type="text" id="modalEwbNo" class="m-input" maxlength="12" style="font-size: 18px; letter-spacing: 2px; font-weight: 900; text-align: center; width: 100%; border: 1px solid var(--m-border); border-radius: 6px; background: var(--m-bg); color: var(--m-text); height: 45px;" placeholder="0000 0000 0000" autocomplete="off">
+      </div>
+      <input type="hidden" id="modalVid">
+      <div style="display:flex; gap: 15px; margin-top: 20px;">
+        <button type="button" class="m-btn m-btn-outline" style="flex:1; justify-content:center;" onclick="closeEwbModal()">Cancel</button>
+        <button type="button" class="m-btn m-btn-accent" style="flex:1; justify-content:center;" id="saveEwbBtn" onclick="saveEwayNumber()">Update & Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentVid = null;
+  
+  function promptEwayNumber(vid, vnum, currentVal) {
+    currentVid = vid;
+    document.getElementById('modalVid').value = vid;
+    document.getElementById('modalVNum').textContent = vnum;
+    document.getElementById('modalEwbNo').value = currentVal || '';
+    document.getElementById('ewbUpdateModal').style.display = 'flex';
+    document.getElementById('modalEwbNo').focus();
+  }
+
+  function closeEwbModal() {
+    document.getElementById('ewbUpdateModal').style.display = 'none';
+  }
+
+  async function saveEwayNumber() {
+    const vid = document.getElementById('modalVid').value;
+    const num = document.getElementById('modalEwbNo').value.trim();
+    
+    if (num.length !== 12 || isNaN(num)) {
+      alert('Please enter a valid 12-digit e-Way Bill number.');
+      return;
+    }
+    
+    const btn = document.getElementById('saveEwbBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    try {
+      const res = await fetch('{{ url_for("gst.update_eway_number") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({voucher_id: vid, eway_bill_no: num})
+      });
+      const data = await res.json();
+      if (data.success) {
+        location.reload();
+      } else {
+        alert(data.error || 'Failed to update number.');
+        btn.disabled = false;
+        btn.textContent = 'Update & Save';
+      }
+    } catch (e) {
+      alert('Network error.');
+      btn.disabled = false;
+      btn.textContent = 'Update & Save';
+    }
+  }
+</script>
+{% endblock %}

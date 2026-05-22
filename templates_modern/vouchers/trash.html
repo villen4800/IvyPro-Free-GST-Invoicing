@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="m-container">
+    <div class="m-header">
+        <div>
+            <h1 class="m-title">Trash Bin</h1>
+            <p class="m-subtitle">Restore or permanently delete removed records</p>
+        </div>
+        <div class="m-actions">
+            <span class="m-badge m-bg-red-light">Items are kept here indefinitely until manually deleted.</span>
+        </div>
+    </div>
+
+    <div class="m-card">
+        <div class="m-card-header">
+            <h3 class="m-card-title">Deleted Vouchers</h3>
+        </div>
+        <div class="m-table-container">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Number</th>
+                        <th>Party</th>
+                        <th class="m-text-right">Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in vouchers.items %}
+                    <tr class="m-row-hover">
+                        <td>{{ v.date.strftime('%d-%m-%Y') }}</td>
+                        <td>{{ v.voucher_type }}</td>
+                        <td>{{ v.voucher_number }}</td>
+                        <td>{{ v.party.name if v.party else '—' }}</td>
+                        <td class="m-text-right">₹{{ "%.2f"|format(v.total_amount) }}</td>
+                        <td>
+                            <div class="m-flex gap-2">
+                                <a href="{{ url_for('vouchers.restore', id=v.id) }}" class="m-btn m-btn-sm m-btn-accent">Restore</a>
+                                <a href="{{ url_for('vouchers.delete_permanent', id=v.id) }}" class="m-btn m-btn-sm m-btn-secondary" onclick="return confirm('PERMANENTLY DELETE? This cannot be undone.')">Delete</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="m-text-center m-p-40 m-text-muted">No vouchers in trash.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if expenses %}
+    <div class="m-card m-mt-4">
+        <div class="m-card-header">
+            <h3 class="m-card-title">Deleted Expenses</h3>
+        </div>
+        <div class="m-table-container">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th class="m-text-right">Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in expenses %}
+                    <tr class="m-row-hover">
+                        <td>{{ e.date.strftime('%d-%m-%Y') }}</td>
+                        <td>{{ e.description }}</td>
+                        <td class="m-text-right">₹{{ "%.2f"|format(e.amount) }}</td>
+                        <td>
+                            <div class="m-flex gap-2">
+                                <a href="#" class="m-btn m-btn-sm m-btn-accent">Restore</a>
+                                <a href="#" class="m-btn m-btn-sm m-btn-secondary">Delete</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

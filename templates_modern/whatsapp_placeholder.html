@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}WhatsApp{% endblock %}
+{% block page_title %}WhatsApp Messaging{% endblock %}
+{% block content %}
+
+<div class="stats-grid" style="margin-bottom:20px">
+  <div class="stat-card" style="--accent-color:#25d366">
+    <div class="stat-label">Total Sent</div>
+    <div class="stat-value">{{ logs|length }}</div>
+    <div class="stat-change">All time</div>
+  </div>
+  <div class="stat-card" style="--accent-color:#25d366">
+    <div class="stat-label">Invoices Sent</div>
+    <div class="stat-value">{{ logs|selectattr('message_type','eq','invoice')|list|length }}</div>
+  </div>
+  <div class="stat-card" style="--accent-color:#f5a623">
+    <div class="stat-label">Reminders Sent</div>
+    <div class="stat-value">{{ logs|selectattr('message_type','eq','payment_reminder')|list|length }}</div>
+  </div>
+  <div class="stat-card" style="--accent-color:#2979ff">
+    <div class="stat-label">Statements Sent</div>
+    <div class="stat-value">{{ logs|selectattr('message_type','eq','ledger_statement')|list|length }}</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+<!-- How To -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title" style="color:#25d366">💬 WhatsApp Features</span>
+  </div>
+  <div class="card-body" style="display:flex;flex-direction:column;gap:12px;font-size:13px">
+    <div style="padding:12px;background:rgba(37,211,102,0.08);border-radius:8px;border:1px solid rgba(37,211,102,0.2)">
+      <div style="font-weight:600;color:#25d366;margin-bottom:4px">🧾 Send Invoice</div>
+      <div class="text-muted">Open any Sales Invoice → click <b>💬 WhatsApp Invoice</b></div>
+    </div>
+    <div style="padding:12px;background:rgba(37,211,102,0.08);border-radius:8px;border:1px solid rgba(37,211,102,0.2)">
+      <div style="font-weight:600;color:#25d366;margin-bottom:4px">📒 Send Ledger Statement</div>
+      <div class="text-muted">Open Ledger Statement → click <b>💬 Send on WhatsApp</b></div>
+    </div>
+    <div style="padding:12px;background:rgba(245,166,35,0.08);border-radius:8px;border:1px solid rgba(245,166,35,0.2)">
+      <div style="font-weight:600;color:#f5a623;margin-bottom:4px">🔔 Payment Reminder</div>
+      <div class="text-muted">Open Ledger Statement → click <b>🔔 Payment Reminder</b></div>
+    </div>
+    <div class="alert alert-info" style="font-size:12px">
+      ℹ️ WhatsApp links open <b>wa.me</b> — works on phone & desktop. No API key needed. Party must have phone number in ledger.
+    </div>
+  </div>
+</div>
+
+<!-- Log -->
+<div class="card">
+  <div class="card-header"><span class="card-title">📋 Send History</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Date/Time</th><th>Party</th><th>Phone</th><th>Type</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="text-muted" style="font-size:12px">{{ log.sent_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ log.ledger.name if log.ledger else '—' }}</td>
+          <td class="text-muted">{{ log.phone }}</td>
+          <td>
+            <span class="badge {% if log.message_type == 'invoice' %}badge-green{% elif log.message_type == 'payment_reminder' %}badge-gold{% else %}badge-blue{% endif %}">
+              {{ log.message_type.replace('_',' ').title() }}
+            </span>
+          </td>
+          <td>
+            {% if log.voucher_id %}
+            <a href="{{ url_for('vouchers.view', id=log.voucher_id) }}" class="btn btn-xs btn-secondary">View</a>
+            {% elif log.ledger_id %}
+            <a href="{{ url_for('ledger.statement', id=log.ledger_id) }}" class="btn btn-xs btn-secondary">Ledger</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted" style="padding:32px">
+          No WhatsApp messages sent yet.<br>
+          <span style="font-size:12px">Open an invoice or ledger to send via WhatsApp.</span>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+{% endblock %}

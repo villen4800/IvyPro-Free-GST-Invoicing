@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+{% block title %}{{ ledger.name }} — Statement{% endblock %}
+{% block page_title %}Ledger Report{% endblock %}
+
+{% block print_title %}Ledger Statement: {{ ledger.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.m-stmt-grid { display: grid; grid-template-columns: 1fr 300px; gap: 30px; }
+.m-period-bar { 
+  display: flex; gap: 15px; align-items: center; margin-bottom: 25px; 
+  background: var(--m-surface); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--m-border);
+}
+.m-stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--m-border); font-size: 12px; }
+.m-stat-label { color: var(--m-gray); }
+.m-stat-value { font-weight: 600; color: var(--m-text); font-family: var(--m-font-mono); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="m-period-bar print-hide">
+  <span style="font-size: 10px; color: var(--m-gray); text-transform: uppercase;">Period:</span>
+  <form method="GET" style="display: flex; gap: 10px; align-items: center;">
+    <input type="date" name="from_date" value="{{ from_date }}" class="m-input" style="width: 150px; padding: 5px 10px;">
+    <span style="color: var(--m-gray);">→</span>
+    <input type="date" name="to_date" value="{{ to_date }}" class="m-input" style="width: 150px; padding: 5px 10px;">
+    <button type="submit" class="m-btn m-btn-accent" style="padding: 5px 15px;">Refresh</button>
+  </form>
+  <div style="margin-left: auto; display: flex; gap: 10px;">
+    <button onclick="window.print()" class="m-btn m-btn-outline">Print</button>
+    <button onclick="exportCSV()" class="m-btn m-btn-outline">Export</button>
+  </div>
+</div>
+
+<div class="m-stmt-grid">
+  <!-- LEFT: TRANSACTIONS -->
+  <div class="m-card">
+    <div class="m-card-header print-hide"><span class="m-card-title">Transaction History</span></div>
+    <div class="m-table-wrap" style="border: none;">
+      <table class="m-table" id="stmtTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Particulars</th>
+            <th class="thermal-hide">Vch No</th>
+            <th style="text-align: right;">Debit</th>
+            <th style="text-align: right;">Credit</th>
+            <th style="text-align: right;">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Opening Balance on Start Date -->
+          <tr style="background: rgba(255,255,255,0.02);">
+            <td style="color: var(--m-gray); font-family: var(--m-font-mono);">Opg.</td>
+            <td style="font-weight: 700; color: var(--m-text);">Opening Balance on {{ from_date }}</td>
+            <td></td>
+            <td style="text-align: right; font-family: var(--m-font-mono);">
+              {{ "{:,.2f}".format(opening_on_fd|abs) if opening_on_fd >= 0 else '—' }}
+            </td>
+            <td style="text-align: right; font-family: var(--m-font-mono);">
+              {{ "{:,.2f}".format(opening_on_fd|abs) if opening_on_fd < 0 else '—' }}
+            </td>
+            <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 700; color: var(--m-text);">
+              ₹{{ "{:,.2f}".format(opening_on_fd|abs) }} {{ 'Dr' if opening_on_fd >= 0 else 'Cr' }}
+            </td>
+          </tr>
+
+          {% for e in entries %}
+          <tr onclick="window.location='{{ url_for('vouchers.view', id=e.voucher_id) }}'" tabindex="0" style="cursor: pointer;">
+            <td style="font-family: var(--m-font-mono); color: var(--m-gray);">{{ e.date.strftime('%d-%b-%y') }}</td>
+            <td>
+              <div style="font-weight: 500; color: var(--m-text);">{{ e.particulars }}</div>
+              <div style="font-size: 10px; color: var(--m-gray);">{{ e.narration[:60] if e.narration else '' }}</div>
+            </td>
+            <td class="thermal-hide" style="font-family: var(--m-font-mono); font-size: 11px;">{{ e.voucher_number or '—' }}</td>
+            <td style="text-align: right; font-family: var(--m-font-mono);">{{ "{:,.2f}".format(e.debit) if e.debit else '—' }}</td>
+            <td style="text-align: right; font-family: var(--m-font-mono);">{{ "{:,.2f}".format(e.credit) if e.credit else '—' }}</td>
+            <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 700; color: var(--m-text);">
+              ₹{{ "{:,.2f}".format(e.balance|abs) }} {{ 'Dr' if e.balance >= 0 else 'Cr' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="background: rgba(0,0,0,0.2);">
+            <td colspan="3" style="text-align: right; padding: 15px; color: var(--m-gray); font-size: 10px; text-transform: uppercase;">Period Totals</td>
+            <td style="text-align: right; color: var(--m-text); font-family: var(--m-font-mono);">₹{{ "{:,.2f}".format(total_debit) }}</td>
+            <td style="text-align: right; color: var(--m-text); font-family: var(--m-font-mono);">₹{{ "{:,.2f}".format(total_credit) }}</td>
+            <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 700; color: var(--m-text); font-size: 16px;">
+              ₹{{ "{:,.2f}".format(closing_balance|abs) }} {{ 'Dr' if closing_balance >= 0 else 'Cr' }}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    
+    {% if pagination %}
+      <div class="print-hide">
+        {% from "macros.html" import render_pagination %}
+        {{ render_pagination(pagination, 'ledger.statement', id=ledger.id, from_date=from_date, to_date=to_date) }}
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- RIGHT: SUMMARY (Hidden in print to keep table full width) -->
+  <div class="print-hide">
+
+    {% if quick_action_type %}
+    <div class="m-card" style="margin-bottom: 25px; border: 1px solid var(--m-accent);">
+      <div class="m-card-header" style="background: var(--m-accent-muted); border-bottom: 1px solid var(--m-accent);"><span class="m-card-title" style="color: var(--m-accent);"><i class="ri-flashlight-fill"></i> Quick Actions</span></div>
+      <div class="m-card-body" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+        <button onclick="openTransferModal()" class="m-btn m-btn-accent" style="width: 100%; justify-content: center; font-weight: 700;">
+          {% if quick_action_type == 'deposit' %}Deposit to Bank Account
+          {% elif quick_action_type == 'withdraw' %}Withdraw Cash
+          {% elif quick_action_type == 'receipt' %}Record Receipt
+          {% elif quick_action_type == 'payment' %}Record Payment
+          {% endif %}
+        </button>
+        <button onclick="openManualModal()" class="m-btn m-btn-outline" style="width: 100%; justify-content: center;">
+          <i class="ri-add-circle-line"></i> Manual Entry
+        </button>
+      </div>
+    </div>
+    {% else %}
+    <div class="m-card" style="margin-bottom: 25px;">
+      <div class="m-card-header"><span class="m-card-title">Quick Actions</span></div>
+      <div class="m-card-body" style="padding: 20px;">
+        <button onclick="openManualModal()" class="m-btn m-btn-accent" style="width: 100%; justify-content: center; font-weight: 700;">
+          <i class="ri-add-circle-line"></i> Add Manual Entry
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="m-card" style="margin-bottom: 25px;">
+      <div class="m-card-header"><span class="m-card-title">Share & Print</span></div>
+      <div class="m-card-body" style="display: flex; flex-direction: column; gap: 10px;">
+        {% set is_gst_ledger = ledger.name.upper().startswith(('CGST', 'SGST', 'IGST')) or ' GST ' in ledger.name.upper() or ledger.name.upper().endswith(' GST') %}
+        {% set show_chq = ledger.group and ledger.group.name in ['Sundry Creditors', 'Sundry Debtors', 'Bank Accounts', 'Loans (Liability)', 'Capital Account'] %}
+        {% if show_chq and not is_gst_ledger and ledger.group.name != 'Cash-in-Hand' and plugin_manager.is_enabled('cheque-printing') %}
+        <button onclick="openChequeModal()" class="m-btn m-btn-accent" style="width: 100%; justify-content: center; background: #FFD700; color: #000; border: none;">
+          <i class="ri-bank-card-line"></i> Print Cheque
+        </button>
+        {% endif %}
+        <a href="{{ url_for('ledger.whatsapp_ledger', id=ledger.id) }}" target="_blank" class="m-btn m-btn-outline" style="width: 100%; color: #25D366; border-color: #25D366;"><i class="ri-whatsapp-line"></i> Share Statement</a>
+        <a href="{{ url_for('ledger.whatsapp_due', id=ledger.id) }}" target="_blank" class="m-btn m-btn-outline" style="width: 100%; color: #25D366; border-color: #25D366;"><i class="ri-whatsapp-line"></i> Send Due Reminder</a>
+      </div>
+    </div>
+
+    <div class="m-card">
+      <div class="m-card-header"><span class="m-card-title">Ledger Summary</span></div>
+      <div class="m-card-body">
+        <h2 style="color: var(--m-text); margin-bottom: 15px;">{{ ledger.name }}</h2>
+        <div class="m-stat-row"><span class="m-stat-label">Group</span><span class="m-stat-value">{{ ledger.group.name }}</span></div>
+        <div class="m-stat-row gst-only"><span class="m-stat-label">GSTIN</span><span class="m-stat-value">{{ ledger.gstin or '—' }}</span></div>
+        <div class="m-stat-row"><span class="m-stat-label">PAN</span><span class="m-stat-value">{{ ledger.pan or '—' }}</span></div>
+        <div class="m-stat-row" style="border-bottom: 2px solid var(--m-border); margin-top: 10px; padding-top: 15px;">
+          <span class="m-stat-label" style="font-weight: 800; color: var(--m-text);">CLOSING BALANCE</span>
+          <span class="m-stat-value" style="font-size: 16px; color: var(--m-accent);">₹{{ "{:,.2f}".format(closing_balance|abs) }} {{ 'Dr' if closing_balance >= 0 else 'Cr' }}</span>
+        </div>
+      </div>
+      <div class="m-card-footer" style="padding: 15px;">
+        <a href="{{ url_for('ledger.edit', id=ledger.id) }}" class="m-btn m-btn-outline" style="width: 100%; justify-content: center;"><i class="ri-edit-line"></i> Edit Ledger Profile</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if quick_action_type %}
+<!-- Quick Action Modal -->
+<div id="transferModal" class="m-modal-overlay" style="display: none; align-items: center; padding-top: 0;">
+  <div class="m-card" style="width: 400px; max-width: 95vw;">
+    <div class="m-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="m-card-title">
+        {% if quick_action_type == 'receipt' %}Record Receipt
+        {% elif quick_action_type == 'payment' %}Record Payment
+        {% else %}Transfer Fund (Contra)
+        {% endif %}
+      </span>
+      <span onclick="closeTransferModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
+    </div>
+    <div class="m-card-body" style="padding: 25px;">
+      <div class="m-form-group">
+        <label class="m-label">
+           {% if quick_action_type == 'receipt' %}Deposit Into
+           {% elif quick_action_type == 'payment' %}Paid From
+           {% else %}Other Account
+           {% endif %}
+        </label>
+        <select id="tBankId" class="m-input">
+          {% for b in quick_ledgers %}
+          <option value="{{ b.id }}">{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="m-form-group">
+        <label class="m-label">Amount (₹)</label>
+        <input type="number" id="tAmount" class="m-input" step="any" value="{{ closing_balance|abs }}">
+      </div>
+      <div class="m-form-group">
+        <label class="m-label">Narration (Optional)</label>
+        <input type="text" id="tNarration" class="m-input" placeholder="Quick entry description...">
+      </div>
+      <div style="display: flex; gap: 15px; margin-top: 20px;">
+        <button onclick="closeTransferModal()" class="m-btn m-btn-outline" style="flex: 1; justify-content: center;">Cancel</button>
+        <button onclick="doTransfer()" class="m-btn m-btn-accent" style="flex: 1; justify-content: center;">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Manual Entry Modal -->
+<div id="manualModal" class="m-modal-overlay" style="display: none; align-items: center; padding-top: 0;">
+  <div class="m-card" style="width: 450px; max-width: 95vw;">
+    <div class="m-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="m-card-title">Add Manual Entry</span>
+      <span onclick="closeManualModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
+    </div>
+    <div class="m-card-body" style="padding: 25px;">
+      <div style="background: var(--m-accent-muted); padding: 10px; border-radius: 6px; margin-bottom: 20px; border: 1px solid var(--m-accent-muted);">
+        <div style="font-size: 10px; color: var(--m-gray); text-transform: uppercase;">Current Ledger</div>
+        <div style="font-weight: 900; color: var(--m-text);">{{ ledger.name }}</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 100px 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label class="m-label">Side</label>
+          <select id="mSide" class="m-input">
+            <option value="Dr">Debit (Dr)</option>
+            <option value="Cr">Credit (Cr)</option>
+          </select>
+        </div>
+        <div>
+          <label class="m-label">Amount (₹)</label>
+          <input type="number" id="mAmount" class="m-input" step="any" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="m-form-group" style="position: relative;">
+        <label class="m-label">Opposite Ledger</label>
+        <input type="text" id="mOtherSearch" class="m-input" placeholder="Search ledger name..." oninput="searchOtherLedger(this)" autocomplete="off">
+        <input type="hidden" id="mOtherId">
+        <div id="mOtherPortal" style="position: absolute; top: 100%; left: 0; right: 0; background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 8px; z-index: 100; display: none; max-height: 200px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>
+      </div>
+
+      <div class="m-form-group">
+        <label class="m-label">Voucher Type</label>
+        <select id="mVtype" class="m-input">
+          <option value="Journal">Journal</option>
+          <option value="Receipt">Receipt</option>
+          <option value="Payment">Payment</option>
+          <option value="Contra">Contra</option>
+        </select>
+      </div>
+
+      <div class="m-form-group">
+        <label class="m-label">Narration</label>
+        <input type="text" id="mNarration" class="m-input" placeholder="Enter narration...">
+      </div>
+
+      <div style="display: flex; gap: 15px; margin-top: 20px;">
+        <button onclick="closeManualModal()" class="m-btn m-btn-outline" style="flex: 1; justify-content: center;">Cancel</button>
+        <button onclick="doManualEntry()" class="m-btn m-btn-accent" style="flex: 1; justify-content: center;">Save Entry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cheque Printing Modal -->
+<div id="chequeModal" class="m-modal-overlay" style="display: none; align-items: center; padding-top: 0;">
+  <div class="m-card" style="width: 450px; max-width: 95vw;">
+    <div class="m-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="m-card-title">Indian Cheque Printing</span>
+      <span onclick="closeChequeModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
+    </div>
+    <div class="m-card-body" style="padding: 25px;">
+      <div class="m-form-group">
+        <label class="m-label">Select Bank Account</label>
+        <select id="cBankId" class="m-input">
+          {% for b in bank_ledgers %}
+            {% if b.group and b.group.name == 'Bank Accounts' %}
+              <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="m-form-group">
+        <label class="m-label">Payee Name</label>
+        <input type="text" id="cPayee" class="m-input" value="{{ ledger.name }}">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="m-form-group">
+          <label class="m-label">Amount (₹)</label>
+          <input type="number" id="cAmount" class="m-input" step="any" value="{{ closing_balance|abs if closing_balance < 0 else 0 }}">
+          <div style="font-size: 10px; color: var(--m-gray); margin-top: 4px; cursor: pointer;" onclick="document.getElementById('cAmount').value = {{ closing_balance|abs }}">
+             Total Balance: ₹{{ "{:,.2f}".format(closing_balance|abs) }}
+          </div>
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">Cheque Date</label>
+          <input type="date" id="cDate" class="m-input" value="{{ today_iso }}">
+        </div>
+      </div>
+
+      <div class="m-form-group">
+        <label class="m-label">Cheque Number</label>
+        <input type="text" id="cNumber" class="m-input" placeholder="e.g. 000123">
+      </div>
+
+      <div style="display: flex; gap: 15px; margin-top: 20px;">
+        <button onclick="closeChequeModal()" class="m-btn m-btn-outline" style="flex: 1; justify-content: center;">Cancel</button>
+        <button onclick="printCheque()" class="m-btn m-btn-accent" style="flex: 1; justify-content: center; background: #FFD700; color: #000;">Print & Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openTransferModal() { document.getElementById('transferModal').style.display = 'flex'; }
+function closeTransferModal() { document.getElementById('transferModal').style.display = 'none'; }
+
+async function doTransfer() {
+  const btn = event.target;
+  const payload = {
+    action: '{{ quick_action_type }}',
+    main_id: {{ ledger.id }},
+    other_id: document.getElementById('tBankId').value,
+    amount: parseFloat(document.getElementById('tAmount').value) || 0,
+    narration: document.getElementById('tNarration').value
+  };
+  
+  if (payload.amount <= 0) { alert('Please enter a valid amount'); return; }
+  
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  
+  const res = await fetch('{{ url_for("ledger.quick_transaction") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  const data = await res.json();
+  if (data.success) {
+    window.location.reload();
+  } else {
+    alert(data.error || 'Transfer failed');
+    btn.disabled = false;
+    btn.textContent = 'Confirm';
+  }
+}
+
+function openManualModal() { 
+  document.getElementById('manualModal').style.display = 'flex'; 
+  const vtypeSel = document.getElementById('mVtype');
+  const sideSel = document.getElementById('mSide');
+  const action = '{{ quick_action_type }}';
+  
+  if (action === 'receipt') {
+    vtypeSel.value = 'Receipt';
+    sideSel.value = 'Cr'; // Main ledger is Credited (Income/Receipt)
+  } else if (action === 'payment') {
+    vtypeSel.value = 'Payment';
+    sideSel.value = 'Dr'; // Main ledger is Debited (Expense/Payment)
+  } else if (action === 'deposit') {
+    vtypeSel.value = 'Contra';
+    sideSel.value = 'Cr'; // Cash is Credited
+  } else if (action === 'withdraw') {
+    vtypeSel.value = 'Contra';
+    sideSel.value = 'Dr'; // Cash is Debited
+  } else {
+    vtypeSel.value = 'Journal';
+  }
+}
+function closeManualModal() { document.getElementById('manualModal').style.display = 'none'; }
+
+async function searchOtherLedger(input) {
+  const q = input.value;
+  const portal = document.getElementById('mOtherPortal');
+  if (q.length < 1) { portal.style.display = 'none'; return; }
+  
+  const res = await fetch(`/ledger/api/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  
+  portal.innerHTML = data.map(l => `
+    <div class="m-ac-row" style="padding: 10px 15px; border-bottom: 1px solid var(--m-border); cursor: pointer;" onclick="selectOtherLedger(${l.id}, '${l.name}')">
+      <div style="font-weight: 700;">${l.name}</div>
+      <div style="font-size: 10px; color: var(--m-gray);">${l.group}</div>
+    </div>
+  `).join('');
+  portal.style.display = 'block';
+}
+
+function selectOtherLedger(id, name) {
+  document.getElementById('mOtherId').value = id;
+  document.getElementById('mOtherSearch').value = name;
+  document.getElementById('mOtherPortal').style.display = 'none';
+}
+
+async function doManualEntry() {
+  const btn = event.target;
+  const payload = {
+    action: 'manual',
+    main_id: {{ ledger.id }},
+    other_id: document.getElementById('mOtherId').value,
+    amount: parseFloat(document.getElementById('mAmount').value) || 0,
+    vtype: document.getElementById('mVtype').value,
+    entry_side: document.getElementById('mSide').value,
+    narration: document.getElementById('mNarration').value
+  };
+  
+  if (payload.amount <= 0) { alert('Please enter a valid amount'); return; }
+  if (!payload.other_id) { alert('Please select an opposite ledger'); return; }
+  
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  
+  const res = await fetch('{{ url_for("ledger.quick_transaction") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  const data = await res.json();
+  if (data.success) {
+    window.location.reload();
+  } else {
+    alert(data.error || 'Failed to save entry');
+    btn.disabled = false;
+    btn.textContent = 'Save Entry';
+  }
+}
+
+function openChequeModal() { 
+  document.getElementById('chequeModal').style.display = 'flex'; 
+  // Set default date to today
+  if(!document.getElementById('cDate').value) {
+      document.getElementById('cDate').value = new Date().toISOString().split('T')[0];
+  }
+}
+function closeChequeModal() { document.getElementById('chequeModal').style.display = 'none'; }
+
+async function printCheque() {
+    const btn = event.target;
+    const payload = {
+        party_id: {{ ledger.id }},
+        bank_id: document.getElementById('cBankId').value,
+        amount: parseFloat(document.getElementById('cAmount').value) || 0,
+        cheque_no: document.getElementById('cNumber').value,
+        date: document.getElementById('cDate').value
+    };
+
+    if (payload.amount <= 0) { alert('Please enter a valid amount'); return; }
+    if (!payload.bank_id) { alert('Please select a bank account'); return; }
+    if (!payload.cheque_no) { alert('Please enter cheque number'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        // 1. Create Entry
+        const res = await fetch('/plugins/cheque-printing/create-entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // 2. Open Print Window
+            const d = payload.date.replace(/-/g, ''); // YYYYMMDD
+            const d_formatted = d.substring(6,8) + d.substring(4,6) + d.substring(0,4); // DDMMYYYY
+            
+            const printUrl = `/plugins/cheque-printing/print-preview?payee=${encodeURIComponent(payload.cPayee || document.getElementById('cPayee').value)}&amount=${payload.amount}&date=${d_formatted}&cheque_no=${payload.cheque_no}&autoprint=true`;
+            
+            window.open(printUrl, '_blank');
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to save entry');
+            btn.disabled = false;
+            btn.textContent = 'Print & Save';
+        }
+    } catch (e) {
+        console.error(e);
+        alert('An error occurred');
+        btn.disabled = false;
+        btn.textContent = 'Print & Save';
+    }
+}
+
+function exportCSV() {
+  const rows = [['Date','Particulars','Vch No','Debit','Credit','Balance']];
+  document.querySelectorAll('#stmtTable tbody tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length >= 6) {
+      rows.push([...tds].map(td => '"' + td.textContent.trim().replace(/"/g,'""') + '"'));
+    }
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = '{{ ledger.name }}_statement.csv';
+  a.click();
+}
+
+if (new URLSearchParams(window.location.search).get('open_cheque') === 'true') {
+    setTimeout(openChequeModal, 500);
+}
+
+enableTableSelection('stmtTable');
+</script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="m-container">
+    <div class="m-header">
+        <div>
+            <h1 class="m-title">Invoice Library</h1>
+            <p class="m-subtitle">Browse and manage automatically archived PDF invoices</p>
+        </div>
+        <div class="m-actions">
+            <a href="{{ url_for('vouchers.trash') }}" class="m-btn m-btn-secondary">
+                <i class="ri-delete-bin-line"></i> View Trash
+            </a>
+        </div>
+    </div>
+
+    {% if not selected_client %}
+    <div class="m-grid m-grid-4 gap-4">
+        {% for client in clients %}
+        <a href="{{ url_for('vouchers.library', client=client) }}" class="m-card m-p-3 m-text-center m-text-decoration-none">
+            <div class="m-icon-large m-bg-blue-light m-mx-auto m-mb-2">
+                <i class="ri-folder-user-line"></i>
+            </div>
+            <div class="m-font-bold">{{ client }}</div>
+        </a>
+        {% else %}
+        <div class="m-card m-p-4 m-text-center m-col-span-4">
+            <p class="m-text-muted">No archived invoices yet. Generate a PDF to start archiving.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="m-card">
+        <div class="m-card-header">
+            <h3 class="m-card-title">{{ selected_client }} — {{ month }}</h3>
+            <a href="{{ url_for('vouchers.library') }}" class="m-btn m-btn-sm m-btn-secondary">Back to Clients</a>
+        </div>
+        <div class="m-table-container">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Format</th>
+                        <th class="m-text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in files %}
+                    <tr class="m-row-hover">
+                        <td><i class="ri-file-pdf-line m-text-red"></i> {{ f }}</td>
+                        <td><span class="m-badge m-bg-blue-light">PDF Document</span></td>
+                        <td class="m-text-right">
+                            <a href="{{ url_for('vouchers.view_saved_pdf', client=selected_client, month=month, filename=f) }}" target="_blank" class="m-btn m-btn-sm m-btn-accent">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.m-mx-auto { margin-left: auto; margin-right: auto; }
+.m-text-decoration-none { text-decoration: none; color: inherit; }
+.m-text-decoration-none:hover { transform: translateY(-4px); border-color: var(--m-accent); }
+</style>
+{% endblock %}

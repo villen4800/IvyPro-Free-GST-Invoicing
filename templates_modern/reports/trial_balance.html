@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Trial Balance{% endblock %}
+{% block page_title %}Trial Balance{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+  body { background: #fff !important; color: #000 !important; padding: 0 !important; }
+  .m-header, .m-sidebar, .m-card-header, .m-footer-bar { display: none !important; }
+  .m-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+  .m-table-wrap { overflow: visible !important; }
+  .m-table { border: 1px solid #000 !important; width: 100% !important; border-collapse: collapse !important; }
+  .m-table th, .m-table td { border: 1px solid #000 !important; color: #000 !important; padding: 5px 10px !important; font-size: 11px !important; }
+  .m-table th { background: #eee !important; -webkit-print-color-adjust: exact; }
+  .m-table tfoot td { font-weight: 900 !important; background: #eee !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="m-card">
+  <div class="m-card-header">
+    <span class="m-card-title">Detailed Trial Balance — {{ company.name }}</span>
+    <div style="display:flex; gap:10px;">
+      <input type="text" id="tbSearch" placeholder="Search ledgers..." class="m-input" style="width: 200px; height: 32px; font-size: 11px; padding: 0 10px;" oninput="filterTable(this.value)">
+      <button onclick="window.print()" class="m-btn m-btn-outline" style="padding: 5px 15px;">Print</button>
+    </div>
+  </div>
+  
+  <div class="m-table-wrap" style="border: none; border-radius: 0;">
+    <table class="m-table" id="tbTable">
+      <thead>
+        <tr>
+          <th>Ledger Account Name</th>
+          <th>Under Group</th>
+          <th style="text-align: right;">Debit (₹)</th>
+          <th style="text-align: right;">Credit (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in trial_balance %}
+        <tr onclick="window.location='{{ url_for('ledger.statement', id=row.ledger.id) }}'" style="cursor: pointer;">
+          <td style="font-weight: 700; color: var(--m-text);">{{ row.name }}</td>
+          <td style="color: var(--m-gray); font-size: 11px; text-transform: uppercase;">{{ row.group }}</td>
+          <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 600; color: var(--m-green);">
+            {% if row.debit %}₹{{ "{:,.2f}".format(row.debit) }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 600; color: var(--m-gold);">
+            {% if row.credit %}₹{{ "{:,.2f}".format(row.credit) }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" style="text-align: center; padding: 40px; color: var(--m-gray);">No ledger balances found for this period.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if trial_balance %}
+      <tfoot>
+        <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid var(--m-border);">
+          <td colspan="2" style="text-align: right; padding: 20px; color: var(--m-gray); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Grand Totals</td>
+          <td style="text-align: right; padding: 20px; font-family: var(--m-font-mono); font-weight: 900; color: var(--m-green); font-size: 15px;">₹{{ "{:,.2f}".format(total_debit) }}</td>
+          <td style="text-align: right; padding: 20px; font-family: var(--m-font-mono); font-weight: 900; color: var(--m-gold); font-size: 15px;">₹{{ "{:,.2f}".format(total_credit) }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<script>
+function filterTable(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#tbTable tbody tr').forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'f') {
+    e.preventDefault();
+    document.getElementById('tbSearch').focus();
+  }
+});
+enableTableNav('tbTable');
+</script>
+{% endblock %}

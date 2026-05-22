@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Sales Register{% endblock %}
+{% block page_title %}Sales Register{% endblock %}
+
+{% block content %}
+<div class="m-card">
+  <div class="m-card-header">
+    <span class="m-card-title">Chronological Sales Log</span>
+    <form method="GET" style="display: flex; gap: 10px; align-items: center;">
+      <input type="date" name="from_date" value="{{ from_date }}" class="m-input" style="padding: 5px 12px; font-family: var(--m-font-mono); width: 150px;">
+      <span style="color: var(--m-gray);">→</span>
+      <input type="date" name="to_date" value="{{ to_date }}" class="m-input" style="padding: 5px 12px; font-family: var(--m-font-mono); width: 150px;">
+      <button type="submit" class="m-btn m-btn-accent">Filter</button>
+      <button type="button" onclick="window.print()" class="m-btn m-btn-outline">Print</button>
+    </form>
+  </div>
+
+  <div class="m-table-wrap" style="border: none; border-radius: 0;">
+    <table class="m-table" id="salesTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Invoice No</th>
+          <th>Party / Customer Name</th>
+          <th class="gst-only">GSTIN</th>
+          <th class="gst-only" style="text-align: right;">Taxable</th>
+          <th class="gst-only" style="text-align: right;">GST Total</th>
+          <th style="text-align: right;">Grand Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vouchers %}
+        <tr onclick="window.location='{{ url_for('vouchers.view', id=v.id) }}'" style="cursor: pointer;">
+          <td style="color: var(--m-gray); font-family: var(--m-font-mono);">{{ v.date.strftime('%d-%b-%y') }}</td>
+          <td style="font-weight: 700; color: var(--m-accent);">{{ v.voucher_number }}</td>
+          <td style="font-weight: 600;">{{ v.party.name if v.party else '—' }}</td>
+          <td class="gst-only" style="font-size: 10px; color: var(--m-gray); font-family: var(--m-font-mono);">{{ v.party.gstin if v.party and v.party.gstin else '—' }}</td>
+          <td class="gst-only" style="text-align: right; font-family: var(--m-font-mono);">₹{{ "{:,.2f}".format(v.taxable_amount) }}</td>
+          <td class="gst-only" style="text-align: right; font-family: var(--m-font-mono); color: var(--m-gray);">
+            ₹{{ "{:,.2f}".format(v.cgst_amount + v.sgst_amount + v.igst_amount) }}
+          </td>
+          <td style="text-align: right; font-family: var(--m-font-mono); font-weight: 800; color: var(--m-text);">₹{{ "{:,.2f}".format(v.total_amount) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--m-gray);">No sales recorded in this period.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if vouchers %}
+      <tfoot>
+        <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid var(--m-accent);">
+          <td colspan="4" style="text-align: right; padding: 15px; color: var(--m-gray); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Totals for Period</td>
+          <td class="gst-only" style="text-align: right; padding: 15px; font-family: var(--m-font-mono); font-weight: 700;">₹{{ "{:,.2f}".format(totals.taxable) }}</td>
+          <td class="gst-only" style="text-align: right; padding: 15px; font-family: var(--m-font-mono); color: var(--m-gray);">₹{{ "{:,.2f}".format(totals.cgst + totals.sgst + totals.igst) }}</td>
+          <td style="text-align: right; padding: 15px; font-family: var(--m-font-mono); font-weight: 900; color: var(--m-accent); font-size: 16px;">₹{{ "{:,.2f}".format(totals.total) }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+  
+  {% if pagination %}
+    {% from "macros.html" import render_pagination %}
+    {{ render_pagination(pagination, 'reports.sales_register', from_date=from_date, to_date=to_date) }}
+  {% endif %}
+</div>
+<script>enableTableNav('salesTable');</script>
+{% endblock %}

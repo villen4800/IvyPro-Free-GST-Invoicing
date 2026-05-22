@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Service Invoice{% endblock %}
+{% block page_title %}Service Billing{% endblock %}
+
+{% block extra_css %}
+<style>
+  .m-service-container { max-width: 900px; margin: 0 auto; }
+  .m-service-header { background: var(--m-panel); padding: 30px; border-radius: 12px; border: 1px solid var(--m-border); margin-bottom: 20px; }
+  .m-service-row { 
+    background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 12px; padding: 25px; 
+    margin-bottom: 15px; position: relative; transition: all 0.2s;
+  }
+  .m-service-row:hover { border-color: var(--m-accent); }
+  .m-service-del { position: absolute; top: 15px; right: 15px; color: var(--m-red); cursor: pointer; font-weight: 900; }
+  
+  .m-service-desc { font-size: 16px; font-weight: 600; background: transparent; border: none; color: var(--m-text); width: 100%; outline: none; margin-bottom: 15px; }
+  .m-service-desc::placeholder { color: var(--m-gray); }
+  
+  .m-service-meta { display: grid; grid-template-columns: 1fr 150px 150px; gap: 20px; align-items: end; }
+  .m-meta-item { display: flex; flex-direction: column; gap: 5px; }
+  .m-meta-label { font-size: 10px; color: var(--m-gray); text-transform: uppercase; font-weight: 700; }
+  
+  .m-service-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 25px;
+  }
+
+  .m-service-footer { 
+    position: sticky; bottom: 30px; background: var(--m-panel); padding: 20px 30px; border-radius: 12px; 
+    border: 1px solid var(--m-border); display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100;
+  }
+
+  @media (max-width: 768px) {
+    .m-service-meta {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .m-service-grid {
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+    .m-service-footer {
+      flex-direction: column;
+      gap: 15px;
+      align-items: stretch;
+      padding: 15px 20px;
+    }
+    .m-service-footer .m-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="m-vtypes-bar">
+  {% for vt in ['Sales', 'Purchase', 'Credit Note', 'Receipt', 'Payment', 'Journal', 'Contra'] %}
+  <a href="{{ url_for('vouchers.create', vtype=vt) }}" 
+     class="m-btn {% if vtype == vt %}m-btn-accent{% else %}m-btn-outline{% endif %}" 
+     style="padding: 6px 15px; font-size: 10px;">
+     {{ vt }}
+  </a>
+  {% endfor %}
+
+  <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+      <span style="font-size: 9px; color: var(--m-gray); font-weight: 800; text-transform: uppercase;">Interface:</span>
+      <a href="{{ url_for('vouchers.create', vtype='Sales', mode='standard') }}" class="m-btn m-btn-outline" style="padding: 4px 10px; font-size: 9px;">Standard</a>
+      <a href="{{ url_for('vouchers.create', vtype='Sales', mode='service') }}" class="m-btn m-btn-accent" style="padding: 4px 10px; font-size: 9px;">Service</a>
+      <a href="{{ url_for('vouchers.create', vtype='Sales', mode='pos') }}" class="m-btn m-btn-outline" style="padding: 4px 10px; font-size: 9px;">POS / Retail</a>
+  </div>
+</div>
+
+<div class="m-service-container">
+  <div class="m-service-header">
+    <div class="m-service-grid">
+      <div>
+        <label class="m-entry-label">Client / Customer</label>
+        <div style="position: relative;">
+          <input type="text" id="sPartySearch" class="m-input" placeholder="Search Client..." autocomplete="off" oninput="searchClient(this.value)" style="font-size: 16px; font-weight: 700;">
+          <input type="hidden" id="sPartyId">
+          <div id="sPartyDropdown" class="m-item-ac" style="display:none; width: 100%; top: 100%;"></div>
+        </div>
+      </div>
+      <div>
+        <label class="m-entry-label">Invoice Date</label>
+        <input type="date" id="sDate" class="m-input" value="{{ today }}">
+      </div>
+      <div>
+        <label class="m-entry-label">Invoice #</label>
+        <div style="font-weight: 900; font-size: 18px; color: var(--m-accent); margin-top: 5px;">{{ next_number }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="serviceRows">
+    <!-- Rows injected here -->
+  </div>
+
+  <button class="m-btn m-btn-outline" style="width: 100%; padding: 15px; border-style: dashed; justify-content: center; margin-bottom: 100px;" onclick="addServiceRow()">
+    <i class="ri-add-line"></i> Add Another Service Line
+  </button>
+
+  <div class="m-service-footer">
+    <div>
+      <div class="m-entry-label">Total Professional Fees</div>
+      <div id="sGrandTotal" style="font-size: 28px; font-weight: 900; color: var(--m-accent);">₹0.00</div>
+    </div>
+    <div style="display: flex; gap: 15px;">
+      <a href="{{ url_for('dashboard.index') }}" class="m-btn m-btn-outline">Cancel</a>
+      <button class="m-btn m-btn-accent" style="padding: 12px 40px; font-weight: 900;" onclick="saveInvoice()">GENERATE INVOICE</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let rowCount = 0;
+let partyId = null;
+const IS_COMPOSITION = {{ 'true' if company.gst_registration_type == 'Composition' else 'false' }};
+const IS_GST_DISABLED = window.IS_GST_DISABLED;
+
+function addServiceRow(data = {}) {
+  rowCount++;
+  const n = rowCount;
+  const container = document.getElementById('serviceRows');
+  const div = document.createElement('div');
+  div.className = 'm-service-row';
+  div.id = 'row-' + n;
+  div.innerHTML = `
+    <span class="m-service-del" onclick="removeRow(${n})">×</span>
+    <input type="text" class="m-service-desc s-desc" placeholder="Nature of Service / Description..." value="${data.desc || ''}">
+    <div class="m-service-meta">
+      <div class="m-meta-item">
+        <label class="m-meta-label">HSN/SAC Code</label>
+        <input type="text" class="m-input s-hsn" placeholder="e.g. 9983" value="${data.hsn || ''}" style="height: 35px;">
+      </div>
+      <div class="m-meta-item" style="${(IS_COMPOSITION || IS_GST_DISABLED) ? 'display:none' : ''}">
+        <label class="m-meta-label">Tax Rate (%)</label>
+        <select class="m-input s-tax" style="height: 35px;" onchange="calcTotal()">
+          <option value="0">0% (Exempt)</option>
+          <option value="5">5%</option>
+          <option value="12">12%</option>
+          <option value="18" selected>18%</option>
+          <option value="28">28%</option>
+        </select>
+      </div>
+      <div class="m-meta-item">
+        <label class="m-meta-label">Amount (₹)</label>
+        <input type="number" class="m-input s-amt" style="height: 35px; text-align: right; font-weight: 700;" placeholder="0.00" oninput="calcTotal()">
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  div.querySelector('.s-desc').focus();
+}
+
+function removeRow(n) { document.getElementById('row-' + n).remove(); calcTotal(); }
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('.m-service-row').forEach(row => {
+    const amt = parseFloat(row.querySelector('.s-amt').value) || 0;
+    const tax = (IS_COMPOSITION || IS_GST_DISABLED) ? 0 : (parseFloat(row.querySelector('.s-tax').value) || 0);
+    total += amt + (amt * tax / 100);
+  });
+  document.getElementById('sGrandTotal').textContent = '₹' + total.toFixed(2);
+}
+
+async function searchClient(q) {
+  const dropdown = document.getElementById('sPartyDropdown');
+  if (q.length < 1) { dropdown.style.display = 'none'; return; }
+  const res = await fetch(`/ledger/api/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  dropdown.innerHTML = data.map(l => `
+    <div class="m-ac-row" onclick="selectClient(${l.id}, '${l.name}')">
+      <div style="font-weight: 700;">${l.name}</div>
+      <div style="font-size: 10px; color: var(--m-gray);">${l.group}</div>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function selectClient(id, name) {
+  partyId = id;
+  document.getElementById('sPartySearch').value = name;
+  document.getElementById('sPartyDropdown').style.display = 'none';
+}
+
+async function saveInvoice() {
+  const items = [];
+  document.querySelectorAll('.m-service-row').forEach(row => {
+    const desc = row.querySelector('.s-desc').value;
+    const amt = parseFloat(row.querySelector('.s-amt').value) || 0;
+    if (!desc || amt <= 0) return;
+    items.push({
+      description: desc,
+      hsn_code: row.querySelector('.s-hsn').value,
+      qty: 1,
+      rate: amt,
+      gst_rate: (IS_COMPOSITION || IS_GST_DISABLED) ? 0 : parseFloat(row.querySelector('.s-tax').value),
+      total_amount: amt
+    });
+  });
+
+  if (!partyId) { alert('Please select a client'); return; }
+  if (items.length === 0) { alert('Add at least one service line'); return; }
+
+  const payload = {
+    date: document.getElementById('sDate').value,
+    party_ledger_id: partyId,
+    payment_mode: 'Credit',
+    items: items
+  };
+
+  const res = await fetch('/voucher/create/Sales', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json();
+  if (data.success) window.location = '/voucher/view/' + data.id;
+  else alert(data.error || 'Failed to save');
+}
+
+// Init
+addServiceRow();
+</script>
+{% endblock %}

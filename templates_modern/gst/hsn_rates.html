@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}HSN Tax Rates{% endblock %}
+{% block page_title %}HSN Rate Master{% endblock %}
+
+{% block content %}
+<div class="m-grid-sidebar">
+  <!-- Left: Add/Edit Form -->
+  <div>
+    <div class="m-card" style="padding: 25px;">
+      <div class="m-group-hdr">Manage HSN Rate</div>
+      <form method="POST">
+        <div class="m-form-group">
+          <label class="m-label">HSN Code *</label>
+          <input type="text" name="code" class="m-input" placeholder="e.g. 8471" required autofocus>
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">GST Rate (%) *</label>
+          <input type="number" name="rate" class="m-input" step="0.01" placeholder="e.g. 18" required>
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">Description</label>
+          <input type="text" name="description" class="m-input" placeholder="e.g. Computers and peripherals">
+        </div>
+        <button type="submit" class="m-btn m-btn-accent" style="width:100%; justify-content: center;">Save HSN Rate</button>
+      </form>
+    </div>
+    
+    <div class="m-card" style="padding: 25px;">
+      <div class="m-group-hdr">Bulk Import</div>
+      <form action="{{ url_for('gst.import_hsn') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 15px;">
+        <div style="font-size: 11px; color: var(--m-gray); line-height: 1.4;">
+          Upload <b>CSV</b> (code, rate, desc) or official <b>HTML/MHTML</b> web archive from CBIC.
+        </div>
+        <input type="file" name="file" class="m-input" style="padding: 8px; font-size: 11px;" accept=".csv,.html,.mhtml" required>
+        <button type="submit" class="m-btn m-btn-accent" style="width: 100%; justify-content: center; box-shadow: 0 4px 12px var(--m-accent-muted);">Upload & Import Data</button>
+      </form>
+      
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--m-border); display: flex; flex-direction: column; gap: 8px;">
+        <a href="{{ url_for('gst.seed_hsn_defaults') }}" class="m-btn m-btn-outline" style="width: 100%; justify-content: center; font-size: 10px; border-color: var(--m-accent-muted); color: var(--m-accent);">Seed Common HSN Defaults</a>
+        
+        <form action="{{ url_for('gst.clear_hsn_data') }}" method="POST" onsubmit="return confirm('WARNING: This will permanently delete ALL HSN/SAC code mappings. Are you sure?')">
+          <button type="submit" class="m-btn m-btn-outline" style="width: 100%; justify-content: center; font-size: 10px; border-color: rgba(255,0,0,0.2); color: var(--m-red);">Clear All HSN Data</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="m-card" style="padding: 20px; background: var(--m-accent-muted);">
+      <div style="font-size: 11px; color: var(--m-accent); font-weight: 700; text-transform: uppercase; margin-bottom: 15px;">Step-by-Step Guide</div>
+      <div style="font-size: 11px; line-height: 1.7; color: var(--m-text); opacity: 0.9;">
+        <div style="margin-bottom: 12px;">
+          <b style="color:var(--m-text);">1. Visit Official Site:</b><br>
+          <div style="font-size: 10px; color: var(--m-gray); margin-bottom: 5px; word-break: break-all;">https://cbic-gst.gov.in/gst-goods-services-rates.html</div>
+          <a href="https://cbic-gst.gov.in/gst-goods-services-rates.html" target="_blank" style="color: var(--m-accent); text-decoration: underline;">Open CBIC GST Rates Portal</a>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <b style="color:var(--m-text);">2. Save the Webpage:</b><br>
+          Press <kbd style="background:#444; padding: 2px 4px; border-radius: 4px;">Ctrl + S</kbd> on the page.
+        </div>
+        <div style="margin-bottom: 12px;">
+          <b style="color:var(--m-text);">3. Select Format:</b><br>
+          Choose <b>"Webpage, Single File (*.mhtml)"</b> or <b>"Webpage, HTML Only"</b>.
+        </div>
+        <div>
+          <b style="color:var(--m-text);">4. Upload Here:</b><br>
+          Use the <b>Bulk Import</b> tool above to upload that saved file directly.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: List -->
+  <div>
+    <div class="m-card">
+      <div class="m-card-header">
+        <span class="m-card-title">HSN Registry</span>
+        <form method="GET" class="m-flex-row" style="gap: 10px;">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="text" name="q" class="m-input" value="{{ q }}" placeholder="Search HSN or Description..." style="height: 32px; width: 220px; font-size: 11px; padding-right: 30px;">
+            {% if q %}
+              <a href="{{ url_for('gst.hsn_rates') }}" style="position: absolute; right: 10px; color: var(--m-gray); font-size: 14px; text-decoration: none;">&times;</a>
+            {% endif %}
+          </div>
+          <button type="submit" class="m-btn m-btn-outline" style="padding: 0 15px; height: 32px;">Search</button>
+        </form>
+      </div>
+      <div class="m-table-wrap" style="border:none;">
+        <table class="m-table">
+          <thead>
+            <tr>
+              <th>HSN Code</th>
+              <th>Description</th>
+              <th style="text-align: right;">GST Rate</th>
+              <th style="width: 50px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for hsn in pagination.items %}
+            <tr>
+              <td data-label="HSN Code" style="font-family: var(--m-font-mono); font-weight: 700; color: var(--m-accent);">{{ hsn.code }}</td>
+              <td data-label="Description" style="font-size: 11px; color: var(--m-gray);">{{ hsn.description or '—' }}</td>
+              <td data-label="GST Rate" style="text-align: right; font-weight: 800;">{{ hsn.gst_rate }}%</td>
+              <td style="text-align: right;">
+                <button class="m-btn m-btn-outline" style="padding: 5px 8px; font-size: 10px;" onclick="editHsn('{{ hsn.code }}', '{{ hsn.gst_rate }}', '{{ hsn.description }}')">EDIT</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" style="text-align:center; padding: 40px; color: var(--m-gray);">No HSN codes mapped yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      {% if pagination.pages > 1 %}
+      <div style="padding: 15px 25px; border-top: 1px solid var(--m-border); display: flex; gap: 10px;">
+        {% for p in pagination.iter_pages() %}
+          {% if p %}
+            <a href="{{ url_for('gst.hsn_rates', page=p, q=q) }}" class="m-btn {% if p == pagination.page %}m-btn-accent{% else %}m-btn-outline{% endif %}" style="padding: 5px 12px;">{{ p }}</a>
+          {% else %}
+            <span style="color: var(--m-gray);">...</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function editHsn(code, rate, desc) {
+  document.querySelector('input[name="code"]').value = code;
+  document.querySelector('input[name="rate"]').value = rate;
+  document.querySelector('input[name="description"]').value = desc;
+  document.querySelector('input[name="code"]').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}
