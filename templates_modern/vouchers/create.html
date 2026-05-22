@@ -8,6 +8,42 @@
 .m-entry-item { display: flex; flex-direction: column; gap: 8px; }
 .m-entry-label { font-size: 10px; color: var(--m-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
 
+.m-voucher-header-bar {
+  display: flex;
+  border-bottom: 1px solid var(--m-border);
+  background: rgba(255,255,255,0.01);
+}
+.m-metadata-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 20px;
+  align-items: end;
+}
+@media (max-width: 992px) {
+  .m-metadata-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .m-voucher-header-bar {
+    flex-direction: column;
+  }
+  .m-voucher-header-bar > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--m-border);
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 15px 20px !important;
+  }
+  .m-voucher-header-bar > div:last-child {
+    border-bottom: none;
+  }
+  .m-metadata-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
+
 .m-grid-table { width: 100%; border-collapse: separate; border-spacing: 0; font-family: var(--m-font-mono); font-size: 13px; }
 .m-grid-table th { background: var(--m-panel); color: var(--m-gray); padding: 12px 10px; text-align: left; font-size: 10px; border-bottom: 2px solid var(--m-border); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; position: sticky; top: 0; z-index: 10; }
 .m-grid-table td { border-bottom: 1px solid var(--m-border); border-right: 1px solid var(--m-border); padding: 0; height: 42px; vertical-align: middle; position: relative; }
@@ -88,7 +124,7 @@ option:hover { background-color: var(--m-accent) !important; color: #000 !import
 
 <div class="m-card m-entry-card" style="padding: 30px;">
   <div class="m-card m-entry-card" style="padding: 0; overflow: visible;">
-    <div style="display: flex; border-bottom: 1px solid var(--m-border); background: rgba(255,255,255,0.01);">
+    <div class="m-voucher-header-bar">
         <div style="padding: 20px 25px; border-right: 1px solid var(--m-border); min-width: 250px;">
             <label class="m-entry-label" style="color: var(--m-accent); font-weight: 800;">Voucher Number</label>
             <div style="font-weight: 900; font-family: var(--m-font-mono); font-size: 22px; color: var(--m-text); letter-spacing: -0.5px;">{{ voucher.voucher_number if edit else next_number }}</div>
@@ -103,7 +139,7 @@ option:hover { background-color: var(--m-accent) !important; color: #000 !import
         </div>
     </div>
     
-    <div style="padding: 25px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 20px; align-items: end; background: var(--m-panel); border-bottom: 1px solid var(--m-border); border-radius: 0 0 12px 12px;">
+    <div class="m-metadata-grid" style="padding: 25px; background: var(--m-panel); border-bottom: 1px solid var(--m-border); border-radius: 0 0 12px 12px;">
         <div style="position: relative;">
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <label class="m-entry-label" style="margin-bottom:0">Party / Ledger Name</label>
@@ -219,7 +255,7 @@ option:hover { background-color: var(--m-accent) !important; color: #000 !import
                     <label class="m-entry-label">Address Line</label>
                     <textarea id="shippingAddress" class="m-input" rows="2" placeholder="Street, Landmark...">{{ voucher.shipping_address or '' }}</textarea>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div class="m-grid-3" style="gap: 10px; margin-bottom: 10px;">
                     <div>
                         <label class="m-entry-label">City</label>
                         <input type="text" id="shippingCity" class="m-input" value="{{ voucher.shipping_city or '' }}" placeholder="City">
@@ -346,7 +382,7 @@ option:hover { background-color: var(--m-accent) !important; color: #000 !import
                 <label class="m-label">Mobile Number</label>
                 <input type="text" id="newPartyPhone" class="m-input" placeholder="e.g. 9876543210" maxlength="15">
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div class="m-grid-3" style="gap: 15px;">
                 <div class="m-form-group">
                     <label class="m-label">City</label>
                     <input type="text" id="newPartyCity" class="m-input">
@@ -412,7 +448,7 @@ option:hover { background-color: var(--m-accent) !important; color: #000 !import
                 <label class="m-label">Principal Place of Business</label>
                 <input type="text" id="editAddress" class="m-input" placeholder="Shop/Building/Street...">
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="m-grid-1-1" style="gap: 15px;">
                 <div class="m-form-group">
                     <label class="m-label">City</label>
                     <input type="text" id="editCity" class="m-input">
