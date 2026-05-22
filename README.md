@@ -2,6 +2,9 @@
 Demo : https://sumit121.pythonanywhere.com/ 
 Username - admin
 pass     - admin123
+
+
+
 IvyPro is a high-performance, keyboard-driven accounting and GST billing software designed for speed, compliance, and aesthetic excellence. It combines the power of traditional accounting logic with a state-of-the-art "Modern Dark" interface.
 <img width="1372" height="666" alt="splash" src="https://github.com/user-attachments/assets/203d701c-c5eb-4df6-a692-b355a31a0f17" />
 
